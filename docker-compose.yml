@@ -1,0 +1,14 @@
+services:
+  postgres_db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: retail_user
+      POSTGRES_PASSWORD: retail_vb123
+      POSTGRES_DB: retail_db
+    ports:
+      - "5430:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
