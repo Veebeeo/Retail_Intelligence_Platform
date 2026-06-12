@@ -7,7 +7,7 @@ str.set_page_config(page_title="Smart Retail Intelligence Engine", layout="wide"
 str.title("Smart Retail Intelligence Platform Dashboard")
 str.markdown("---")
 
-API_BASE_URL = "http://localhost:8001"
+API_BASE_URL = "https://retail-intelligence-api-rxib.onrender.com"
 
 # Create two clean columns for our distinct business tools
 col1, col2 = str.columns(2)
