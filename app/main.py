@@ -14,9 +14,10 @@ app = FastAPI(
 )
 
 #Connect to Database
-DATABASE_URL = os.getenv("DTABASE_URL")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 if not DATABASE_URL:
-    # Build it directly using individual pieces passed by Docker Compose
     user = os.getenv("POSTGRES_USER")
     password = os.getenv("POSTGRES_PASSWORD")
     db = os.getenv("POSTGRES_DB")
@@ -25,6 +26,7 @@ if not DATABASE_URL:
         DATABASE_URL = f"postgresql://{user}:{password}@postgres_db:5432/{db}"
     else:
         raise ValueError("CRITICAL ERROR: Database credentials could not be found anywhere!")
+
 engine = create_engine(DATABASE_URL)
 
 #Define request schemas using Pydantic 
