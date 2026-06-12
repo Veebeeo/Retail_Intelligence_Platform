@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres_db:
     image: postgres:15
@@ -9,6 +11,24 @@ services:
       - "5430:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - retail_network
+
+  web_api:
+    build: .
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+    depends_on:
+      - postgres_db
+    networks:
+      - retail_network
 
 volumes:
   pgdata:
+
+networks:
+  retail_network:

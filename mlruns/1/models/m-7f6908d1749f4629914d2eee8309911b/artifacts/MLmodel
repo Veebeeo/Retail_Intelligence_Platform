@@ -1,0 +1,20 @@
+artifact_path: file:///C:/Users/vises/DAproj/retail-intelligence/mlruns/1/models/m-7f6908d1749f4629914d2eee8309911b/artifacts
+flavors:
+  python_function:
+    data: model.statsmodels
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.statsmodels
+    python_version: 3.11.4
+  statsmodels:
+    code: null
+    data: model.statsmodels
+    statsmodels_version: 0.14.6
+mlflow_version: 3.13.0
+model_id: m-7f6908d1749f4629914d2eee8309911b
+model_size_bytes: 764797
+model_uuid: m-7f6908d1749f4629914d2eee8309911b
+prompts: null
+run_id: 6c009e1df7f5499c9d86fe7e0a933213
+utc_time_created: '2026-06-10 13:50:40.392607'

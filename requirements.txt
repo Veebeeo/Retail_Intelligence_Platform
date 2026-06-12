@@ -4,3 +4,11 @@ openpyxl
 SQLAlchemy
 psycopg2-binary
 python-dotenv
+mlflow
+statsmodels
+scikit-learn
+fastapi
+uvicorn
+pydantic
+requests
+streamlit
