@@ -53,8 +53,6 @@ retail-intelligence-platform/
 
 # Screenshots
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/c0e03fd3-377e-4baf-970b-82bbd2a52f39" />
-
 <img width="1920" height="1080" alt="Screenshot 2026-06-13 213859" src="https://github.com/user-attachments/assets/8d370feb-681e-4032-ba06-eda8381a792f" />
 
 <img width="1920" height="1080" alt="Screenshot 2026-06-13 213928" src="https://github.com/user-attachments/assets/b058234d-8a0d-4635-8829-0f2480fa724f" />
