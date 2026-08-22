@@ -71,8 +71,18 @@ def load_bundle(path: Path | None = None, force: bool = False) -> ChampionBundle
                 "(or `make train`) first."
             )
 
-        with target.open("rb") as fh:
-            raw = pickle.load(fh)  # noqa: S301 - our own artifact, written by the training job
+        try:
+            with target.open("rb") as fh:
+                raw = pickle.load(fh)  # noqa: S301 - our own artifact, from the training job
+        except ModuleNotFoundError as exc:
+            # A bundle is a pickle of fitted model objects, so loading it needs
+            # whatever library produced the champion. Say which one is missing
+            # rather than surfacing a traceback from inside pickle.
+            raise ModelNotAvailable(
+                f"The champion bundle at {target} contains a model from '{exc.name}', "
+                f"which is not installed in this environment. Either install {exc.name}, "
+                "or retrain with that model excluded from the candidate set."
+            ) from exc
 
         _BUNDLE = ChampionBundle(
             models=raw["models"],

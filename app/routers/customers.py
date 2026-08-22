@@ -14,7 +14,7 @@ from app.schemas import (
 )
 from retail_intel.db import read_sql, table_exists
 from retail_intel.logging_conf import get_logger
-from retail_intel.segmentation.pipeline import strategy_for
+from retail_intel.segmentation.strategies import strategy_for
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["customers"])

@@ -102,3 +102,36 @@ def test_full_pipeline_runs_end_to_end(seeded_db):
     )
     failed = [r.name for r in results if r.status != "success"]
     assert not failed, f"pipeline steps failed: {failed}"
+
+
+def test_missing_model_library_gives_an_actionable_error(tmp_path, monkeypatch):
+    """A bundle is a pickle of fitted models, so loading it needs whatever
+    library produced the champion. A bare ModuleNotFoundError from inside
+    pickle does not tell an operator which package to install."""
+    import pickle
+
+    bundle_path = tmp_path / "champions.pkl"
+
+    class _Unloadable:
+        def __reduce__(self):
+            return (_missing_factory, ())
+
+    bundle_path.write_bytes(
+        pickle.dumps({"models": {"X": _Unloadable()}, "meta": {}, "version": 1})
+    )
+
+    real_loads = pickle.load
+
+    def fake_load(fh):
+        raise ModuleNotFoundError("No module named 'xgboost'", name="xgboost")
+
+    monkeypatch.setattr(pickle, "load", fake_load)
+    serving.reset_cache()
+    with pytest.raises(serving.ModelNotAvailable, match="xgboost"):
+        serving.load_bundle(bundle_path)
+    monkeypatch.setattr(pickle, "load", real_loads)
+    serving.reset_cache()
+
+
+def _missing_factory():  # pragma: no cover - only referenced inside a pickle
+    raise ModuleNotFoundError("No module named 'xgboost'", name="xgboost")

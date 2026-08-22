@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1
 #
-# Serving image. Deliberately excludes the training stack: the API loads a
-# pickled champion bundle produced by the training job, so it needs numpy,
-# pandas and statsmodels but not mlflow, xgboost or prophet.
+# Serving image. Excludes the training and analysis stack (mlflow, mlxtend,
+# pandera, prophet), which the API never imports.
+#
+# It does carry statsmodels and xgboost: a champion bundle is a pickle of
+# fitted model objects, so serving needs whatever library produced the winner.
+# See the header of requirements.txt.
 
 # --- build stage ----------------------------------------------------------
 FROM python:3.11-slim AS builder

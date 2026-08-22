@@ -1,9 +1,15 @@
+# Build-context exclusions.
+#
+# Leading slashes are deliberate: a bare `data` or `models` pattern risks
+# matching src/retail_intel/data, which would ship an image missing the
+# ingest and feature modules entirely. The same unanchored pattern in
+# .gitignore did exactly that.
 .git
 .github
 .venv
 venv
-__pycache__
-*.pyc
+**/__pycache__
+**/*.pyc
 .pytest_cache
 .ruff_cache
 htmlcov
@@ -11,10 +17,9 @@ htmlcov
 coverage.xml
 tests
 notebooks
-data
-mlruns
-mlflow.db
-reports
+/data
+/mlruns
+/mlflow.db
+/reports
 *.db
 .env
-README.md

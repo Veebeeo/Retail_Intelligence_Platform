@@ -1,11 +1,11 @@
 {
-  "run_at": "2026-08-22T08:47:08.852123+00:00",
-  "total_seconds": 2.7,
+  "run_at": "2026-08-22T08:52:41.173536+00:00",
+  "total_seconds": 2.75,
   "steps": [
     {
       "name": "features",
       "status": "success",
-      "seconds": 0.11,
+      "seconds": 0.13,
       "detail": {
         "rows": 802,
         "skus": 10
@@ -15,7 +15,7 @@
     {
       "name": "segment",
       "status": "success",
-      "seconds": 2.45,
+      "seconds": 2.48,
       "detail": {
         "n_customers": 88,
         "k": 2,

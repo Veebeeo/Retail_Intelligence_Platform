@@ -19,22 +19,11 @@ from retail_intel.logging_conf import get_logger
 from retail_intel.segmentation import clv as CLV
 from retail_intel.segmentation import rfm as RFM
 from retail_intel.segmentation import uplift as UPLIFT
+from retail_intel.segmentation.strategies import STRATEGIES, strategy_for
 
 logger = get_logger(__name__)
 
-#: What to do with each behavioural segment. Kept next to the labels that
-#: produce them so the two cannot drift apart.
-STRATEGIES = {
-    "Champions": "Early access to launches and a loyalty tier. Do not discount — they buy anyway.",
-    "New / Promising": "Onboarding sequence and a second-purchase incentive. Highest headroom.",
-    "At-Risk High Value": "Win-back with a personalised offer. The largest recoverable revenue.",
-    "Hibernating": "Low-cost automated reactivation only. Do not spend margin here.",
-}
-
-
-def strategy_for(label: str) -> str:
-    base = label.split(" (tier")[0]
-    return STRATEGIES.get(base, "Maintain standard outreach.")
+__all__ = ["STRATEGIES", "main", "run", "strategy_for"]
 
 
 def run(

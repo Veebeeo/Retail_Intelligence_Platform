@@ -197,6 +197,7 @@ Decisions worth defending, and why:
 | Uplift over propensity | Targeting who *responds* rather than who *buys*; the difference is the whole marketing budget |
 | Lift over confidence | Confidence ranks best-sellers regardless of input |
 | Optional heavy dependencies | The registry probes each candidate; a broken Prophet install skips that model instead of aborting a 100-SKU run |
+| Serving image carries statsmodels and xgboost | A champion bundle is a pickle of fitted models, so serving needs whatever library produced the winner — the training-only stack (mlflow, mlxtend, pandera) is what gets left out |
 | Spawn-based process pool | Forking a process holding threaded-BLAS locks deadlocks the children |
 
 ---

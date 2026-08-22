@@ -1,9 +1,15 @@
-# Runtime dependencies for the API container only.
+# Runtime dependencies for the API container.
 #
-# Training-only libraries (mlflow, xgboost, prophet, mlxtend, pandera) live in
-# requirements-ml.txt so the serving image stays small. The model registry
-# skips any candidate whose dependency is absent, so a SARIMA or baseline
-# champion serves perfectly well from this set alone.
+# What is deliberately NOT here: mlflow, mlxtend, pandera and prophet. Those
+# are training and analysis tooling (requirements-ml.txt) and the API never
+# imports them.
+#
+# What IS here and might look surprising: statsmodels and xgboost. A champion
+# bundle is a pickle of fitted model objects, so serving needs whatever library
+# produced the winner. SARIMA and XGBoost can both win, therefore both ship.
+# Prophet is the exception -- it is excluded because its compiled Stan backend
+# is large and fragile; if a Prophet champion is ever selected, add prophet
+# here too or drop it from the candidate set.
 #
 # Pinned, because "pandas" with no version is not a reproducible environment.
 
@@ -12,6 +18,7 @@ numpy==2.1.3
 scipy==1.14.1
 scikit-learn==1.5.2
 statsmodels==0.14.4
+xgboost==2.1.3
 SQLAlchemy==2.0.36
 psycopg2-binary==2.9.10
 pydantic==2.10.4
