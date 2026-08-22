@@ -22,8 +22,10 @@ htmlcov/
 # Notebooks
 .ipynb_checkpoints/
 
-# Data (never commit raw or derived data)
-data/
+# Raw and derived data. The leading slash matters: a bare `data/` also
+# matches src/retail_intel/data/, which silently excluded the whole data
+# package from the repository.
+/data/
 *.xlsx
 *.csv
 *.parquet
