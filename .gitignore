@@ -1,6 +1,44 @@
+# Environments
 venv/
-__pycache__/
+.venv/
+env/
 .env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Data (never commit raw or derived data)
 data/
 *.xlsx
 *.csv
+*.parquet
+!tests/fixtures/*.csv
+
+# ML tracking + model artifacts
+mlruns/
+mlartifacts/
+mlflow.db
+models/
+reports/*.json
+reports/*.html
+!reports/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

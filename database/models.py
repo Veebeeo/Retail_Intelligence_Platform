@@ -1,26 +1,24 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import os
-from dotenv import load_dotenv
+"""Deprecated location. See ``retail_intel.data.models``.
 
-load_dotenv()
+Kept because the README and older notebooks reference it. Unlike the original,
+importing this does *not* connect to a database or run DDL as a side effect.
+"""
 
-Base = declarative_base()
-engine = create_engine(os.getenv("DATABASE_URL"))
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from retail_intel.data.models import (  # noqa: F401
+    Base,
+    CustomerSegment,
+    Transaction,
+    WeeklyFeature,
+    create_all,
+)
+from retail_intel.db import get_engine
 
-class Transaction(Base):
-    __tablename__ = "transactions"
+__all__ = ["Base", "Transaction", "CustomerSegment", "WeeklyFeature", "create_all", "get_engine"]
 
-    id = Column(Integer, primary_key=True, index=True)
-    invoice_no = Column(String, index=True)
-    stock_code = Column(String, index=True)
-    description = Column(String)
-    quantity = Column(Integer)
-    invoice_date = Column(DateTime, index=True)
-    unit_price = Column(Float)
-    customer_id = Column(Float, index=True) # Stored as float because Pandas reads missing IDs as NaN
-    country = Column(String)
 
-Base.metadata.create_all(bind=engine)
+def __getattr__(name: str):
+    # `from database.models import engine` used to work because the module built
+    # an engine at import time. Resolve it lazily instead.
+    if name == "engine":
+        return get_engine()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

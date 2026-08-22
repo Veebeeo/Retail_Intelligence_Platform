@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "retail-intel"
+version = "2.0.0"
+description = "Retail demand forecasting, customer value modelling and inventory decision support."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    "pandas>=2.2,<3",
+    "numpy>=1.26,<3",
+    "scipy>=1.13,<2",
+    "SQLAlchemy>=2.0,<3",
+    "psycopg2-binary>=2.9,<3",
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.5,<3",
+    "python-dotenv>=1.0,<2",
+    "statsmodels>=0.14,<0.15",
+    "scikit-learn>=1.5,<2",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.32,<1"]
+ml = ["mlflow>=2.18,<3", "xgboost>=2.1,<3", "prophet>=1.1.6,<2", "mlxtend>=0.23,<1", "pandera>=0.22,<1"]
+dash = ["streamlit>=1.40,<2", "requests>=2.32,<3", "altair>=5.4,<6"]
+orchestration = ["prefect>=3.1,<4"]
+dev = ["pytest>=8.3,<9", "pytest-cov>=6.0,<7", "httpx>=0.28,<1", "ruff>=0.8,<1"]
+
+[project.scripts]
+retail-ingest = "retail_intel.data.ingest:main"
+retail-features = "retail_intel.data.features:main"
+retail-train = "retail_intel.forecasting.train:main"
+retail-backtest = "retail_intel.forecasting.backtest:main"
+retail-segment = "retail_intel.segmentation.pipeline:main"
+retail-basket = "retail_intel.recommend.market_basket:main"
+retail-drift = "retail_intel.monitoring.drift:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "ARG", "PTH"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG"]
+# `X` is part of the Forecaster interface; univariate models legitimately
+# ignore it rather than changing the signature.
+"src/retail_intel/forecasting/baselines.py" = ["ARG002"]
+"src/retail_intel/forecasting/models.py" = ["ARG002"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: long-running model fits, deselect with -m 'not slow'",
+    "integration: requires a live database",
+]
+filterwarnings = ["ignore::FutureWarning", "ignore::UserWarning"]
