@@ -1,14 +1,21 @@
-pandas
-numpy
-openpyxl
-SQLAlchemy
-psycopg2-binary
-python-dotenv
-mlflow
-statsmodels
-scikit-learn
-fastapi
-uvicorn
-pydantic
-requests
-streamlit
+# Runtime dependencies for the API container only.
+#
+# Training-only libraries (mlflow, xgboost, prophet, mlxtend, pandera) live in
+# requirements-ml.txt so the serving image stays small. The model registry
+# skips any candidate whose dependency is absent, so a SARIMA or baseline
+# champion serves perfectly well from this set alone.
+#
+# Pinned, because "pandas" with no version is not a reproducible environment.
+
+pandas==2.2.3
+numpy==2.1.3
+scipy==1.14.1
+scikit-learn==1.5.2
+statsmodels==0.14.4
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+fastapi==0.115.6
+uvicorn[standard]==0.34.0

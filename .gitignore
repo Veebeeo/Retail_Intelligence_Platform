@@ -27,13 +27,16 @@ data/
 *.xlsx
 *.csv
 *.parquet
+*.db
+*.sqlite3
 !tests/fixtures/*.csv
 
 # ML tracking + model artifacts
 mlruns/
 mlartifacts/
 mlflow.db
-models/
+models/*
+!models/.gitkeep
 reports/*.json
 reports/*.html
 !reports/.gitkeep

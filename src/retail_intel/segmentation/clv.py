@@ -47,9 +47,12 @@ class BGNBDParams:
 
     def to_dict(self) -> dict:
         return {
-            "r": round(self.r, 4), "alpha": round(self.alpha, 4),
-            "a": round(self.a, 4), "b": round(self.b, 4),
-            "log_likelihood": round(self.log_likelihood, 2), "converged": self.converged,
+            "r": round(self.r, 4),
+            "alpha": round(self.alpha, 4),
+            "a": round(self.a, 4),
+            "b": round(self.b, 4),
+            "log_likelihood": round(self.log_likelihood, 2),
+            "converged": self.converged,
         }
 
 
@@ -61,8 +64,12 @@ class GammaGammaParams:
     converged: bool
 
     def to_dict(self) -> dict:
-        return {"p": round(self.p, 4), "q": round(self.q, 4), "v": round(self.v, 4),
-                "converged": self.converged}
+        return {
+            "p": round(self.p, 4),
+            "q": round(self.q, 4),
+            "v": round(self.v, 4),
+            "converged": self.converged,
+        }
 
 
 def build_cbs(df: pd.DataFrame, snapshot_date: pd.Timestamp | None = None) -> pd.DataFrame:
@@ -96,7 +103,8 @@ def build_cbs(df: pd.DataFrame, snapshot_date: pd.Timestamp | None = None) -> pd
     out = cbs[["frequency", "recency", "T", "monetary_value", "n_orders"]].reset_index()
     logger.info(
         "CBS built for %d customers; %d have repeat purchases",
-        len(out), int((out["frequency"] > 0).sum()),
+        len(out),
+        int((out["frequency"] > 0).sum()),
     )
     return out
 
@@ -174,7 +182,8 @@ def predict_purchases(cbs: pd.DataFrame, params: BGNBDParams, days: int = 90) ->
     if a <= 1.0 + 1e-6:
         logger.info(
             "BG/NBD fitted a=%.4f (<= 1), so the closed-form expectation is undefined. "
-            "Using the posterior purchase rate weighted by P(alive) instead.", a,
+            "Using the posterior purchase rate weighted by P(alive) instead.",
+            a,
         )
         return np.clip(days * (r + x) / (alpha + T) * alive, 0, None)
 
@@ -221,8 +230,12 @@ def spend_frequency_correlation(cbs: pd.DataFrame) -> float:
 def _gamma_gamma_negative_ll(params: np.ndarray, x: np.ndarray, m: np.ndarray) -> float:
     p, q, v = np.exp(params)
     ll = (
-        gammaln(p * x + q) - gammaln(p * x) - gammaln(q)
-        + q * np.log(v) + (p * x - 1) * np.log(m) + (p * x) * np.log(x)
+        gammaln(p * x + q)
+        - gammaln(p * x)
+        - gammaln(q)
+        + q * np.log(v)
+        + (p * x - 1) * np.log(m)
+        + (p * x) * np.log(x)
         - (p * x + q) * np.log(v + x * m)
     )
     if not np.isfinite(ll).all():
@@ -240,7 +253,8 @@ def fit_gamma_gamma(cbs: pd.DataFrame) -> GammaGammaParams:
     if abs(rho) > 0.3:
         logger.warning(
             "Spend and frequency correlate at %.2f; Gamma-Gamma assumes independence, "
-            "so predicted monetary values are biased.", rho,
+            "so predicted monetary values are biased.",
+            rho,
         )
 
     x = repeat["frequency"].to_numpy(dtype=float)
@@ -249,8 +263,11 @@ def fit_gamma_gamma(cbs: pd.DataFrame) -> GammaGammaParams:
     best: tuple[float, np.ndarray] | None = None
     for start in ([1.0, 1.0, 1.0], [6.0, 4.0, 15.0], [2.0, 3.0, 5.0]):
         res = minimize(
-            _gamma_gamma_negative_ll, np.log(start), args=(x, m),
-            method="Nelder-Mead", options={"maxiter": 2000, "fatol": 1e-6},
+            _gamma_gamma_negative_ll,
+            np.log(start),
+            args=(x, m),
+            method="Nelder-Mead",
+            options={"maxiter": 2000, "fatol": 1e-6},
         )
         if best is None or res.fun < best[0]:
             best = (float(res.fun), res.x)

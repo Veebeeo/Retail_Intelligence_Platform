@@ -1,572 +1,395 @@
-# Retail Intelligence & Demand Planning Platform
+# Retail Intelligence Platform
 
-A production-grade, multi-container MLOps and Data Engineering ecosystem designed to process over 500K+ transactional records. The platform ingests raw retail data, tracks data-drift and experiments using MLflow, runs predictive time-series and clustering pipelines, and serves real-time inference via a high-performance FastAPI microservice to a reactive Streamlit business dashboard.
+Demand forecasting, inventory optimisation and customer value modelling over
+two years of UK online retail transactions.
 
-The entire architecture is containerized using Docker, ensuring reproducible environments across local development and seamless horizontal scaling during cloud deployment.
-
----
-
-## Live Production Links
-
-The platform is fully operational and deployed across the public cloud topology. You can interact with the live ecosystem instantly:
-
-* **Production Business UI:** [https://retailintelligence-platform.streamlit.app/](https://retailintelligence-platform.streamlit.app/)
-* **Production REST API Gateway (Swagger docs):** [https://retail-intelligence-api-rxib.onrender.com/docs](https://retail-intelligence-api-rxib.onrender.com/docs)
-
----
-
-## System Architecture
-
-The platform is designed around decoupled microservices interacting within an isolated overlay network, separating the concerns of data storage, business logic inference, and user presentation.
-
-* **Data Warehouse Tier (PostgreSQL):** A persistent relational database optimized with indices on indexing nodes (`stock_code`, `customer_id`) to accelerate complex analytical joins and slice transactions across time windows.
-* **Application Services Tier (FastAPI & Uvicorn):** An asynchronous REST API executing container-contained predictive tasks. It acts as an abstraction layer between the presentation dashboard and the cold-storage layer, serving validated Pydantic payloads.
-* **Analytics Layer (MLflow Tracking Server):** An experimental registry tracking model metadata, hyperparameter sweeps, performance metrics, and evaluation plots across historical script runs.
-* **Presentation Layer (Streamlit UI):** A stateful frontend rendering analytical matrices, predictive trends, and marketing recommendation profiles directly to stakeholders.
-
-* <img width="1918" height="380" alt="graphviz (6)" src="https://github.com/user-attachments/assets/f83d2327-9629-4134-9158-3b557742f490" />
-
-
-### Repository Structure
-
-```text
-retail-intelligence-platform/
-├── app/
-│   ├── __init__.py
-│   ├── dashboard.py           # Streamlit Web Presentation Dashboard
-│   └── main.py                # FastAPI Application and Inference Routes
-├── database/
-│   ├── __init__.py
-│   └── models.py              # Declarative SQLAlchemy ORM Data Schemas
-├── scripts/
-│   ├── __init__.py
-│   ├── ingest_data.py         # ETL pipeline parsing raw transactional logs
-│   ├── ingest_features.py     # Feature engineering pipeline for time-series matrices
-│   └── cluster_customers.py   # Analytical pipeline calculating RFM segments
-├── .gitignore                 # Excludes raw data, virtual environments, and local credentials
-├── Dockerfile                 # Multi-stage compilation production configuration
-├── docker-compose.yml         # Container ecosystem orchestration matrix
-├── requirements.txt           # Consolidated framework and tracking dependencies
-└── README.md                  # Comprehensive technical dossier
+The point of the project is not that it forecasts. It is that every forecast is
+**measured against the cheap alternative** a planner would otherwise use, only
+served when it wins, and translated into a reorder quantity and a cost — so the
+question "is this model worth anything" has an answer in currency.
 
 ```
-
-# Screenshots
-
-<img width="1920" height="1080" alt="Screenshot 2026-06-13 213859" src="https://github.com/user-attachments/assets/8d370feb-681e-4032-ba06-eda8381a792f" />
-
-<img width="1920" height="1080" alt="Screenshot 2026-06-13 213928" src="https://github.com/user-attachments/assets/b058234d-8a0d-4635-8829-0f2480fa724f" />
-
-# Core Data & Feature Engineering Pipeline
-
-Before any model training or clustering occurs, the platform executes a multi-stage **ETL (Extract, Transform, Load)** pipeline that converts raw, noisy transactional data into structured tables optimized for machine learning algorithms.
-
-## 1. Ingestion and Cleaning (`ingest_data.py`)
-
-### Raw Ingestion
-
-* Reads the bulk dataset.
-* Standardizes schema types.
-* Drops structural anomalies (e.g., records with missing `Customer ID`).
-
-### Financial Correction
-
-* Filters duplicate records.
-* Handles canceled orders (invoices prefixed with `C`) by adjusting net volume and sales records.
-* Prevents artificial revenue inflation.
-
-### Database Target
-
-* Streams normalized transactions directly into the production PostgreSQL `transactions` table using SQLAlchemy chunked inserts.
-
----
-
-## 2. Time-Series Feature Engineering (`ingest_features.py`)
-
-To feed predictive demand models, transactional data is transformed from granular purchases into chronological, equally spaced weekly frequency blocks.
-
-### Market-Share Isolation
-
-* Groups transactions by `stock_code`.
-* Selects the top 100 highest-volume SKUs.
-* Focuses computational resources on critical inventory drivers.
-
-### Temporal Aggregation
-
-* Groups data by week (`freq='W'`).
-* Summarizes net quantity into a uniform `weekly_sales` time-series column.
-
-### Lag & Window Features
-
-#### Lag Features
-
-* **Lag 1:** Sales shifted by 1 week (`t-1`)
-* **Lag 2:** Sales shifted by 2 weeks (`t-2`)
-
-These provide short-term memory and capture momentum patterns.
-
-#### Rolling Average
-
-* **4-Week Rolling Mean**
-* Captures the previous month's performance.
-* Smooths out erratic weekly spikes.
-
-#### Seasonality Index
-
-* Extracts the calendar month integer.
-* Captures periodic and holiday-driven demand fluctuations.
-
----
-
-# Machine Learning Framework & Pipelines
-
-## 1. Demand Forecasting (Time-Series)
-
-The platform evaluates both classical statistical models and machine learning approaches to predict future inventory requirements.
-
-### Model Evaluation & Rationale
-
-#### XGBoost Regressor
-
-Uses engineered lag and calendar-based features.
-
-**Hyperparameters**
-
-```python
-n_estimators = 100
-max_depth = 5
-learning_rate = 0.1
-```
-
-**Performance**
-
-```text
-MAPE = 53.60%
-```
-
-**Observations**
-
-* Captures complex non-linear relationships.
-* Struggles to model long-term trends and seasonality when historical data is limited.
-
----
-
-#### SARIMA (Seasonal ARIMA)
-
-A statistical forecasting model that directly captures:
-
-* Autoregressive patterns
-* Long-term trends
-* Seasonal demand cycles
-
-**Configuration**
-
-```text
-(p,d,q) = (1,1,1)
-(P,D,Q,s) = (1,1,1,52)
-```
-
-**Performance**
-
-```text
-MAPE = 37.12%
+Raw workbook ──► transactions ──► weekly features ──┬──► backtest ──► champions ──► API ──► dashboard
+   (~1M rows)      (Postgres)      (lag/rolling)     │      (MLflow)      (per SKU)
+                        │                            └──► drift monitor
+                        ├──► RFM segments + BG/NBD CLV + uplift targeting
+                        └──► market-basket association rules
 ```
 
 ---
 
-### Experiment Tracking
+## Contents
 
-All training runs, parameters, and metrics are tracked using **MLflow**.
-
----
-
-### Production Model Selection
-
-| Model   | MAPE   |
-| ------- | ------ |
-| XGBoost | 53.60% |
-| SARIMA  | 37.12% |
-
-SARIMA significantly outperformed XGBoost by capturing deep seasonal retail patterns and was therefore selected as the production forecasting model.
-
-To reduce deployment complexity and container size:
-
-* Heavy ML dependencies such as `xgboost` were removed from production requirements.
-* SARIMA became the default forecasting engine.
+- [What it does](#what-it-does)
+- [Results](#results)
+- [Design decisions](#design-decisions)
+- [Quick start](#quick-start)
+- [API](#api)
+- [Project layout](#project-layout)
+- [Testing](#testing)
+- [What this repository used to be](#what-this-repository-used-to-be)
+- [Limitations](#limitations)
 
 ---
 
-## 2. Customer Segmentation (RFM Clustering)
+## What it does
 
-The platform uses an unsupervised clustering engine to segment customers based on purchasing behavior.
+### 1. Demand forecasting with honest evaluation
 
-Implemented in:
+Seven candidate models — four baselines, SARIMA, Prophet, XGBoost — behind one
+interface, evaluated by **rolling-origin cross-validation across every SKU**
+rather than a single split on the single easiest series.
 
-```text
-cluster_customers.py
+The champion is selected **per SKU** on MASE, and **only promoted if it beats
+seasonal naive on that SKU**. Where nothing beats the baseline, the baseline is
+what gets served. A model that loses to a one-line heuristic is not worth
+shipping.
+
+Headline metric is MASE, not MAPE. MAPE is undefined when weekly demand hits
+zero (which it does, constantly) and it is asymmetric in the wrong direction
+for inventory — it prefers models that under-forecast, and under-forecasting is
+what causes stockouts. See [MODEL_CARD.md](MODEL_CARD.md).
+
+### 2. Inventory decisions, not just predictions
+
+A forecast is worth nothing until it becomes an order quantity:
+
+```
+SL*           = Cu / (Cu + Co)              # newsvendor critical ratio
+safety stock  = z(SL) · σ_error · √(lead time)
+reorder point = expected lead-time demand + safety stock
 ```
 
-### RFM Metrics
+Safety stock is sized from the **forecast error** distribution, not from demand
+variance — a common mistake that over-buys by charging the model for
+seasonality it predicted correctly. Supply both cost parameters and the service
+level is *derived* rather than assumed.
 
-#### Recency
+`POST /inventory/policy` returns a reorder point with an explanation in plain
+English.
 
-Number of days since the customer's most recent purchase.
+### 3. Customer value, forward-looking
 
-#### Frequency
+RFM K-means describes what a customer *has* done. It cannot say whether a quiet
+customer has churned or is simply between purchases — the central problem in
+non-contractual retail, where nobody cancels, they just stop coming back.
 
-Total number of unique invoices generated by the customer.
+**BG/NBD** (purchase frequency + dropout) and **Gamma-Gamma** (spend per
+transaction) are implemented directly on scipy — `lifetimes` is unmaintained and
+breaks on modern pandas — giving expected purchases, predicted 90-day value and
+a churn probability per customer.
 
-#### Monetary
+Validated on a time holdout: **0.86 correlation** between predicted and actual
+purchases over a 180-day future window.
 
-Total customer spending across all transactions.
+`GET /customers/at-risk` returns the intersection of high predicted value and
+high churn probability — which is where retention budget belongs. Ranking by
+past spend alone puts loyal customers at the top, and they need nothing.
 
----
+### 4. Uplift modelling for campaign targeting
 
-### Clustering Optimization
+CLV ranks customers by worth. Targeting the top of that ranking still wastes
+most of the budget, because the highest-value customers include a large group
+who would have bought anyway — the discount sent to them is margin given away.
 
-Before clustering:
+A **T-learner** estimates the *causal* effect of contact per individual,
+splitting customers into persuadables, sure things, lost causes and sleeping
+dogs, evaluated with Qini and priced with a campaign profit curve.
 
-1. RFM values undergo logarithmic transformation.
-2. Features are standardized using `StandardScaler`.
+> **On the data.** Estimating uplift honestly requires a randomised holdout, and
+> Online Retail II has no campaign log and no control group. Rather than imply a
+> causal result the data cannot support, the estimator is validated against a
+> **simulated campaign with known ground truth** — it recovers the planted
+> effect with a Spearman correlation of ~0.5 and identifies a profitable
+> targeting depth of ~20% against a *loss* from contacting everyone. This is a
+> validated implementation waiting for real campaign data, not a claimed result.
 
-### K-Means Selection
+### 5. Cross-sell recommendations
 
-The optimal cluster count was determined using:
+FP-Growth association rules over invoice baskets, ranked by **lift** rather than
+confidence. Confidence alone just resurfaces best-sellers regardless of the
+input SKU; lift measures whether buying A genuinely makes B more likely than
+chance.
 
-* Elbow Method
-* Silhouette Coefficient Analysis
+### 6. Drift monitoring
 
-```text
-Optimal K = 4
-```
+PSI, Kolmogorov–Smirnov and chi-square against the training reference window,
+producing a verdict and a retrain recommendation.
 
----
-
-### Customer Segments & Marketing Strategies
-
-#### Cluster 0 — Champions / Core Loyalists
-
-**Characteristics**
-
-* High frequency
-* High spending
-* Recent purchases
-
-**Strategy**
-
-* Early access to product launches
-* Premium loyalty rewards
-* VIP campaigns
-
----
-
-#### Cluster 1 — At-Risk High Spenders
-
-**Characteristics**
-
-* Historically high spenders
-* High recency (inactive)
-
-**Strategy**
-
-* Win-back campaigns
-* Personalized discounts
-* Re-engagement offers
+On p-values in monitoring: with enough rows *every* comparison becomes
+significant, because no two weeks of real data come from an identical
+distribution. Effect sizes decide the verdict here; p-values are supporting
+detail.
 
 ---
 
-#### Cluster 2 — New / Recent Buyers
+## Results
 
-**Characteristics**
+Reproduce with `make backtest`. Reports land in `reports/`.
 
-* Low recency
-* Moderate frequency
-* Moderate spending
+> **The committed reports were generated on synthetic data.** Online Retail II
+> is not redistributable and CI runs on a clean checkout, so the repository
+> ships a generator that produces realistic series — trend, annual seasonality,
+> promotional spikes, customer churn and complementary product pairs. Re-run
+> against the real workbook before quoting any figure.
 
-**Strategy**
+A representative synthetic run (12 SKUs, 4 folds, 4-week horizon):
 
-* Welcome onboarding sequences
-* Cross-sell and upsell recommendations
+| Model | MASE (mean) | WAPE | Bias | Coverage | Beats baseline |
+| --- | --- | --- | --- | --- | --- |
+| `moving_average` | **0.834** | 39.0% | −1.8% | 94.8% | 66.7% |
+| `xgboost` | 0.875 | 51.1% | +13.0% | 79.7% | 75.0% |
+| `naive` | 0.985 | 37.2% | −19.7% | 97.4% | 58.3% |
+| `sarima` | 1.061 | 72.2% | +33.9% | 84.4% | 41.7% |
+| `seasonal_naive` | 1.097 | 189.5% | — | 89.6% | — |
 
----
+The interesting result is that **SARIMA — the model this project previously
+declared its production champion — scores worse than seasonal naive**, with a
++34% forecast bias. That is not a bug. It is the expected outcome for short,
+noisy, promotion-driven SKU series, and it is precisely the finding that
+reporting a single MAPE figure with no baseline conceals.
 
-#### Cluster 3 — Low-Value Occasional Customers
-
-**Characteristics**
-
-* High recency
-* Low frequency
-* Low spending
-
-**Strategy**
-
-* Automated engagement campaigns
-* Clearance and promotional offers
-
----
-
-# Production Deployment & Cloud Infrastructure
-
-The platform follows a distributed cloud architecture that separates workloads into independently scalable layers.
+The champion mix is spread across models, which is the argument for per-SKU
+selection rather than picking one winner globally.
 
 ---
 
-## 1. Multi-Stage Docker Build Optimization
+## Design decisions
 
-A secure multi-stage Docker build is used to separate compilation dependencies from runtime execution.
+Decisions worth defending, and why:
 
-### Stage 1 — Builder
-
-Uses a heavyweight base image containing:
-
-```text
-build-essential
-libpq-dev
-```
-
-Purpose:
-
-* Compile Python wheels
-* Build analytical libraries
-
----
-
-### Stage 2 — Runtime
-
-Uses:
-
-```text
-python:3.11-slim
-```
-
-Only compiled dependencies are copied from the builder stage.
-
-**Benefits**
-
-* Smaller image size
-* Faster deployments
-* Reduced attack surface
-* Elimination of unnecessary build tools
+| Decision | Reasoning |
+| --- | --- |
+| MASE over MAPE | MAPE is undefined at zero demand and asymmetric against over-forecasting — the wrong bias for inventory |
+| Per-SKU champions | Steady high-volume and intermittent long-tail SKUs are different problems; no model wins both |
+| Baseline veto | A candidate that loses to seasonal naive is not promoted, ever |
+| Rolling-origin CV | One split gives one number from one arbitrary cut-off, on whichever series happened to be chosen |
+| Safety stock from error, not demand variance | Predicted seasonality is not uncertainty and should not be buffered against |
+| BG/NBD over an RFM recency cut-off | Distinguishes "churned" from "slow but alive"; a recency threshold cannot |
+| Uplift over propensity | Targeting who *responds* rather than who *buys*; the difference is the whole marketing budget |
+| Lift over confidence | Confidence ranks best-sellers regardless of input |
+| Optional heavy dependencies | The registry probes each candidate; a broken Prophet install skips that model instead of aborting a 100-SKU run |
+| Spawn-based process pool | Forking a process holding threaded-BLAS locks deadlocks the children |
 
 ---
 
-## 2. Environment Variable Protection
+## Quick start
 
-Database credentials are loaded dynamically from environment variables rather than hardcoded into source code.
+### Run it without any data
 
-```python
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
-    user = os.getenv("POSTGRES_USER")
-    password = os.getenv("POSTGRES_PASSWORD")
-    db = os.getenv("POSTGRES_DB")
-
-    if user and password and db:
-        DATABASE_URL = (
-            f"postgresql://{user}:{password}@postgres_db:5432/{db}"
-        )
-    else:
-        raise ValueError(
-            "CRITICAL ERROR: Database credentials could not be found anywhere!"
-        )
-```
-
----
-
-## 3. Distributed Cloud Deployment Topology
-
-### Database Layer — Render PostgreSQL
-
-* Managed PostgreSQL instance
-* Relational indexing
-* Handles transactional workloads
-
----
-
-### API Layer — Render Web Service
-
-* Deploys FastAPI backend
-* Builds directly from Dockerfile
-* Dynamically binds container ports
-
----
-
-### Client Layer — Streamlit Community Cloud
-
-* Pulls directly from GitHub
-* Communicates with backend via REST APIs
-* Hosts the analytics dashboard
-
----
-
-# 🛠️ Running the Project Locally
-
-## Prerequisites
-
-* Docker Desktop
-* Python 3.11+
-
----
-
-## Clone the Repository
+Everything works from a clean clone — the generator produces a realistic
+warehouse:
 
 ```bash
-git clone https://github.com/Veebeeo/Retail_Intelligence_Platform.git
-
-cd Retail_Intelligence_Platform
+make install-dev
+cp .env.example .env          # defaults to SQLite; no Postgres required
+make seed                     # generate → ingest → features → train → segment → baskets → drift
+make api                      # http://localhost:8000/docs
+make dashboard                # http://localhost:8501
 ```
 
----
+### Run it on the real dataset
 
-## Environment Configuration
-
-Create a `.env` file in the project root:
-
-```env
-POSTGRES_USER=retail_user
-POSTGRES_PASSWORD=retail_password
-POSTGRES_DB=retail_db
-
-DATABASE_URL=postgresql://retail_user:retail_password@localhost:5430/retail_db
-```
-
----
-
-## Start the Infrastructure
+Download [Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii)
+to `data/online_retail_II.xlsx`, then:
 
 ```bash
-docker compose up --build -d
+make pipeline SOURCE=data/online_retail_II.xlsx
 ```
 
-This command:
-
-* Builds the FastAPI image
-* Downloads PostgreSQL 15
-* Creates the internal network
-* Starts all services
-
----
-
-## Verify Container Health
+Or step by step:
 
 ```bash
-docker compose ps
+make ingest SOURCE=data/online_retail_II.xlsx   # → transactions
+make features                                   # → ml_weekly_features
+make backtest                                   # → reports/backtest_summary.csv
+make train                                      # → models/champions.pkl + MLflow
+make segment                                    # → customer_segments (RFM + CLV + uplift)
+make baskets                                    # → product_associations
+make drift                                      # → reports/drift_report.json
 ```
 
-Ensure both containers show:
-
-```text
-Up
-```
-
-Expected services:
-
-```text
-retail-intelligence-postgres_db-1
-retail-intelligence-web_api-1
-```
-
----
-
-# Data Initialization & Pipeline Execution
-
-## Create Virtual Environment
-
-### Windows
+### Docker
 
 ```bash
-python -m venv venv
-
-.\venv\Scripts\activate
+make up     # Postgres + MLflow + API + dashboard
+make down
 ```
 
-### Linux / macOS
+Services: API on `:8001`, dashboard on `:8501`, MLflow on `:5000`, Postgres on
+`:5430`. Every service has a healthcheck and dependencies wait on health rather
+than on the container merely existing.
+
+### Orchestration
+
+The pipeline runs as plain Python by default, with Prefect as an optional
+extra — the API image does not need an orchestrator to serve a forecast:
 
 ```bash
-python -m venv venv
-
-source venv/bin/activate
+python -m pipelines.flow --synthetic          # plain
+python -m pipelines.flow --synthetic --prefect  # with retries and task-level observability
 ```
 
 ---
 
-## Install Dependencies
+## API
+
+Interactive docs at `/docs`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /forecast` | Demand forecast with 95% interval, model name and backtest score |
+| `POST /inventory/policy` | Reorder point and safety stock, with a plain-English explanation |
+| `GET /models` | Registry summary: version, model mix, median MASE, % beating baseline |
+| `GET /models/{sku}` | Backtest provenance for one SKU |
+| `POST /segment` | Customer segment, predicted CLV, churn probability, next action |
+| `GET /customers/at-risk` | High value ∩ high churn risk, ranked |
+| `GET /segments/summary` | Segment sizes, revenue share, recommended actions |
+| `GET /recommend/{sku}` | Cross-sell candidates ranked by lift |
+| `GET /drift` | Latest drift report and retrain recommendation |
+| `GET /health` | Real readiness — reports *degraded*, not a hard-coded "healthy" |
+
+Every forecast response carries its own provenance:
+
+```json
+{
+  "stock_code": "85123A",
+  "model": "seasonal_drift",
+  "model_version": 3,
+  "backtest_mase": 0.71,
+  "baseline_mase": 0.94,
+  "improvement_vs_baseline_pct": 24.5,
+  "predictions": [
+    {"week_horizon": 1, "week_starting": "2011-12-12",
+     "predicted_quantity": 412.3, "lower_95": 288.1, "upper_95": 561.7}
+  ]
+}
+```
+
+You can tell a well-validated forecast from a weak one without leaving the
+response.
+
+---
+
+## Project layout
+
+```
+src/retail_intel/
+├── config.py              # pydantic-settings; every tunable in one place
+├── db.py                  # lazy engine, parameterised queries only
+├── data/
+│   ├── contracts.py       # Pandera schemas at every pipeline boundary
+│   ├── ingest.py          # raw → transactions
+│   ├── features.py        # transactions → ml_weekly_features
+│   ├── models.py          # SQLAlchemy schema
+│   └── synthetic.py       # generator: trend, seasonality, churn, complements
+├── forecasting/
+│   ├── base.py            # the Forecaster interface
+│   ├── baselines.py       # naive, seasonal naive, moving average, drift
+│   ├── models.py          # SARIMA, Prophet, XGBoost
+│   ├── metrics.py         # MASE, WAPE, sMAPE, bias, coverage, pinball
+│   ├── backtest.py        # rolling-origin CV, parallel
+│   ├── registry.py        # availability probing
+│   ├── train.py           # champion selection, persistence, MLflow
+│   └── serving.py         # load once, serve fast
+├── business/inventory.py  # newsvendor, safety stock, cost simulation
+├── segmentation/
+│   ├── rfm.py             # RFM + K search + labelling
+│   ├── clv.py             # BG/NBD + Gamma-Gamma
+│   ├── uplift.py          # T-learner, Qini, campaign economics
+│   └── pipeline.py        # combined customer table
+├── recommend/market_basket.py
+└── monitoring/drift.py    # PSI, KS, chi-square
+
+app/                       # FastAPI (routers, schemas) + Streamlit dashboard
+pipelines/flow.py          # end-to-end orchestration
+tests/                     # 146 tests
+```
+
+---
+
+## Testing
 
 ```bash
-pip install -r requirements.txt
+make test        # 146 tests
+make coverage    # 78%
+make lint
 ```
+
+The suite runs against SQLite seeded from the generator — no Postgres, no
+credentials, no network. CI runs lint, tests on Python 3.11 and 3.12, a full
+end-to-end pipeline on generated data, and a Docker build that must answer
+`/health` before it passes.
+
+Tests worth pointing at:
+
+- `test_features.py` — asserts rolling windows exclude the current week, so a
+  leaking feature cannot silently reappear
+- `test_api.py` — SQL injection payloads against both endpoints, plus an
+  assertion that the forecast is not a fixed 2%-per-week curve
+- `test_customers.py` — the T-learner must recover a *known* simulated uplift
+- `test_pipeline.py` — the miner must recover deliberately planted product
+  associations
 
 ---
 
-## Run ETL & ML Pipelines
+## What this repository used to be
 
-### 1. Populate Transaction Data
+Worth stating plainly, since the history is public.
 
-```bash
-python -m scripts.ingest_data
-```
-
----
-
-### 2. Generate Customer Segments
-
-```bash
-python -m scripts.cluster_customers
-```
-
----
-
-### 3. Create Forecasting Features
-
-```bash
-python -m scripts.ingest_features
-```
-
----
-
-# Accessing the Platform in Your System
-
-## FastAPI Swagger Documentation
-
-```text
-http://localhost:8001/docs
-```
-
-Use the Swagger UI to test API endpoints interactively.
+| Was | Now |
+| --- | --- |
+| `/forecast` returned `recent_avg * (1 + 0.02 * week)` while the docs described a SARIMA production model | Serves the per-SKU champion selected by backtest |
+| Both endpoints interpolated user input into SQL with f-strings | Parameterised throughout, with validation before the query and tests that prove it |
+| `import streamlit as str` | Fixed, and the dashboard rebuilt as a decision tool |
+| `ingest_features.py` documented but absent — features lived only in notebook cells | Exists; the pipeline is reproducible from a clone |
+| `rolling(4).mean()` included the current week | Every window shifted; a test enforces it |
+| Cancellations dropped the credit note but kept the original sale | Both removed, so refunds stop counting as revenue |
+| Weekly grouping silently skipped zero-demand weeks | Dense weekly grid |
+| `K=4` hard-coded with a comment claiming elbow and silhouette had chosen it | K actually searched, scores recorded |
+| Clusters labelled by monetary value alone | Labelled on all three RFM dimensions |
+| `"Leal Customers"` typo in the database and live API responses | Fixed |
+| MAPE only, no baseline, one SKU, one split | MASE/WAPE/bias/coverage, four baselines, every SKU, rolling origin |
+| Model card compared `0.3712` against `40.6340` as if both were the same unit | Consistent units, baselines, honest caveats |
+| `mlflow.db` and `mlruns/` committed | Untracked |
+| Unpinned dependencies; `xgboost`/`prophet` imported but not declared | Pinned and split by role |
+| No tests, no CI | 146 tests, 78% coverage, four CI jobs |
+| Container ran as root, no healthcheck | Unprivileged user, healthchecks throughout |
 
 ---
 
-## Streamlit Dashboard
+## Limitations
 
-Start the dashboard:
+Stated because they are real, not because they are small:
 
-```bash
-streamlit run app/dashboard.py
-```
-
-Open:
-
-```text
-http://localhost:8501
-```
-
-to access the complete Retail Intelligence analytics platform.
+- **Top 100 SKUs.** The long tail is intermittent demand and wants Croston's
+  method, which is not implemented.
+- **No exogenous features.** Price, promotions, holidays and stockouts are not
+  modelled. A week that sold nothing *because the item was out of stock* is
+  recorded as zero demand — the single largest source of bias in retail
+  forecasting, and untreated here.
+- **Two years of history** means at most two observations of any annual peak, so
+  seasonal terms are weakly identified.
+- **UK-dominated** (~90% of rows).
+- **Uplift is validated, not measured.** No control group exists in this data.
+- **Committed metrics are from synthetic data.** Re-run on the real workbook.
+- **Forecasts are not causal.** Nothing here says what demand would be at a
+  different price.
 
 ---
 
-# Key Features
+## Data
 
-* End-to-End Retail ETL Pipeline
-* Transaction Cleaning & Validation
-* Weekly Time-Series Feature Engineering
-* SARIMA Demand Forecasting
-* MLflow Experiment Tracking
-* RFM-Based Customer Segmentation
-* K-Means Clustering
-* FastAPI REST Backend
-* PostgreSQL Data Warehouse
-* Streamlit Analytics Dashboard
-* Dockerized Infrastructure
-* Render Cloud Deployment
-* Environment-Based Configuration Management
+[Online Retail II](https://archive.ics.uci.edu/dataset/502/online+retail+ii),
+UCI Machine Learning Repository. Not redistributed here.
+
+## References
+
+- Hyndman & Koehler (2006), *Another look at measures of forecast accuracy* — MASE
+- Fader, Hardie & Lee (2005), *"Counting Your Customers" the Easy Way* — BG/NBD
+- Fader & Hardie (2013), *The Gamma-Gamma Model of Monetary Value*
+- Radcliffe (2007), *Using Control Groups to Target on Predicted Lift* — Qini
+
+## Licence
+
+MIT

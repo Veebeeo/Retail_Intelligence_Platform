@@ -53,9 +53,7 @@ class DriftResult:
     pct_change: float | None = None
 
     def to_dict(self) -> dict:
-        return {
-            k: (round(v, 5) if isinstance(v, float) else v) for k, v in asdict(self).items()
-        }
+        return {k: (round(v, 5) if isinstance(v, float) else v) for k, v in asdict(self).items()}
 
 
 def population_stability_index(
@@ -113,16 +111,26 @@ def numeric_drift(
 
     return [
         DriftResult(
-            feature, "psi", psi, None, severity_from_psi(psi),
-            ref_mean, cur_mean,
+            feature,
+            "psi",
+            psi,
+            None,
+            severity_from_psi(psi),
+            ref_mean,
+            cur_mean,
             (cur_mean - ref_mean) / ref_mean * 100 if abs(ref_mean) > 1e-9 else None,
         ),
         DriftResult(
-            feature, "ks", float(ks_stat), float(ks_p),
+            feature,
+            "ks",
+            float(ks_stat),
+            float(ks_p),
             # KS statistic is a max CDF gap in [0,1]; 0.1/0.2 are the usual
             # informal thresholds for "worth looking at" and "clearly moved".
             "significant" if ks_stat > 0.2 else "moderate" if ks_stat > 0.1 else "stable",
-            ref_mean, cur_mean, None,
+            ref_mean,
+            cur_mean,
+            None,
         ),
     ]
 
@@ -131,7 +139,9 @@ def categorical_drift(
     reference: pd.Series, current: pd.Series, feature: str, top_n: int = 20
 ) -> list[DriftResult]:
     categories = reference.value_counts().nlargest(top_n).index
-    ref_counts = reference[reference.isin(categories)].value_counts().reindex(categories, fill_value=0)
+    ref_counts = (
+        reference[reference.isin(categories)].value_counts().reindex(categories, fill_value=0)
+    )
     cur_counts = current[current.isin(categories)].value_counts().reindex(categories, fill_value=0)
 
     if cur_counts.sum() == 0 or ref_counts.sum() == 0:
@@ -147,7 +157,12 @@ def categorical_drift(
 
     ref_pct = (ref_counts / ref_counts.sum()).to_numpy()
     cur_pct = (cur_counts / cur_counts.sum()).to_numpy()
-    psi = float(np.sum((cur_pct - ref_pct) * np.log(np.clip(cur_pct, 1e-6, None) / np.clip(ref_pct, 1e-6, None))))
+    psi = float(
+        np.sum(
+            (cur_pct - ref_pct)
+            * np.log(np.clip(cur_pct, 1e-6, None) / np.clip(ref_pct, 1e-6, None))
+        )
+    )
 
     return [
         DriftResult(feature, "chi2", chi2, p, severity_from_psi(psi)),
@@ -201,7 +216,9 @@ def run(current_weeks: int = 8) -> dict:
     reference, current = split_reference_current(features, "week", current_weeks)
     logger.info(
         "Drift check: %d reference rows vs %d rows from the last %d weeks",
-        len(reference), len(current), current_weeks,
+        len(reference),
+        len(current),
+        current_weeks,
     )
 
     results = compare(
@@ -213,8 +230,10 @@ def run(current_weeks: int = 8) -> dict:
 
     flagged = results[results["severity"] != "stable"]
     verdict = (
-        "significant" if (results["severity"] == "significant").any()
-        else "moderate" if (results["severity"] == "moderate").any()
+        "significant"
+        if (results["severity"] == "significant").any()
+        else "moderate"
+        if (results["severity"] == "moderate").any()
         else "stable"
     )
 
@@ -234,7 +253,9 @@ def run(current_weeks: int = 8) -> dict:
     }
 
     settings.report_dir.mkdir(parents=True, exist_ok=True)
-    (settings.report_dir / "drift_report.json").write_text(json.dumps(report, indent=2, default=str))
+    (settings.report_dir / "drift_report.json").write_text(
+        json.dumps(report, indent=2, default=str)
+    )
 
     logger.info("Drift verdict: %s (%d flagged tests)", verdict, len(flagged))
     if len(flagged):
@@ -244,7 +265,9 @@ def run(current_weeks: int = 8) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Check for data drift in the serving window.")
-    parser.add_argument("--weeks", type=int, default=8, help="Size of the recent comparison window.")
+    parser.add_argument(
+        "--weeks", type=int, default=8, help="Size of the recent comparison window."
+    )
     args = parser.parse_args()
     report = run(args.weeks)
     logger.info("%s", report["recommendation"])

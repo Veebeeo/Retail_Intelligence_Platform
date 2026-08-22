@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  # Tests run against SQLite; no Postgres service needed for the unit suite.
+  DATABASE_URL: "sqlite:///./ci.db"
+  MODEL_DIR: "./models"
+  MLFLOW_TRACKING_URI: "file:./mlruns"
+  LOG_LEVEL: "WARNING"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff==0.8.4
+      - run: ruff check .
+      - run: ruff format --check --diff .
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          # Prophet is deliberately excluded: it ships a compiled Stan backend
+          # that is slow and fragile to install, and the model registry already
+          # skips any candidate whose dependency is unavailable.
+          pip install -e ".[api,dev]"
+          pip install mlflow xgboost mlxtend pandera
+
+      - name: Test
+        run: pytest --cov=src/retail_intel --cov=app --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  smoke:
+    name: End-to-end pipeline
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,dev]"
+          pip install mlflow xgboost mlxtend pandera
+
+      - name: Run the full pipeline on generated data
+        # Proves a clean clone can go from nothing to a servable model without
+        # the raw workbook, which is not redistributable.
+        run: |
+          python -m pipelines.flow --synthetic --fail-fast --jobs 2 --folds 2 --top-n 15
+
+      - name: Verify the API serves a real forecast
+        run: |
+          uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health && break || sleep 2
+          done
+          curl -sf http://localhost:8000/health | tee health.json
+          python -c "import json; h=json.load(open('health.json')); assert h['models_loaded'], h; print('models loaded:', h['n_skus'], 'SKUs')"
+          SKU=$(curl -sf http://localhost:8000/models/skus | python -c "import json,sys; print(json.load(sys.stdin)['stock_codes'][0])")
+          curl -sf -X POST http://localhost:8000/forecast \
+            -H 'Content-Type: application/json' \
+            -d "{\"stock_code\":\"$SKU\",\"horizon_weeks\":4}" | tee forecast.json
+          python -c "import json; f=json.load(open('forecast.json')); assert len(f['predictions'])==4; assert f['model']; print('served by', f['model'])"
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-reports
+          path: reports/
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: retail-intelligence:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify the image starts
+        run: |
+          docker run -d --name api -p 8000:8000 \
+            -e DATABASE_URL="sqlite:////tmp/ci.db" retail-intelligence:ci
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health && break || sleep 2
+          done
+          curl -sf http://localhost:8000/health
+          docker logs api

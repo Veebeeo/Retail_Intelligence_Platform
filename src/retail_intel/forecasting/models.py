@@ -49,7 +49,8 @@ class SarimaForecaster(Forecaster):
         if len(y) < 2 * seasonal_order[3]:
             logger.debug(
                 "Series of %d weeks too short for period %d; fitting non-seasonal ARIMA",
-                len(y), seasonal_order[3],
+                len(y),
+                seasonal_order[3],
             )
             seasonal_order = (0, 0, 0, 0)
 

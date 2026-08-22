@@ -92,27 +92,36 @@ class TLearner:
         outcome = np.asarray(outcome).astype(int)
         self.feature_names = list(X.columns)
 
-        for arm, name in ((1, "treated"), (0, "control")):
-            mask = treatment == arm
+        arms = {"treated": treatment == 1, "control": treatment == 0}
+
+        # Validate both arms before fitting either, so the error names whichever
+        # arm is actually missing rather than whichever is checked first.
+        for name, mask in arms.items():
             if mask.sum() < 20:
-                raise ValueError(f"Only {mask.sum()} rows in the {name} arm; need at least 20")
+                raise ValueError(
+                    f"Only {mask.sum()} rows in the {name} arm; need at least 20. "
+                    "Uplift cannot be estimated without a randomised holdout."
+                )
+        for name, mask in arms.items():
             if len(np.unique(outcome[mask])) < 2:
                 raise ValueError(f"The {name} arm has only one outcome class")
+
+        for name, mask in arms.items():
             model = GradientBoostingClassifier(**self.model_kwargs)
             model.fit(X[mask], outcome[mask])
             setattr(self, f"{name}_model", model)
 
         logger.info(
-            "T-learner fitted: %d treated, %d control", int(treatment.sum()), int((1 - treatment).sum())
+            "T-learner fitted: %d treated, %d control",
+            int(treatment.sum()),
+            int((1 - treatment).sum()),
         )
         return self
 
     def predict_uplift(self, X: pd.DataFrame) -> np.ndarray:
         if self.treated_model is None or self.control_model is None:
             raise RuntimeError("call fit() first")
-        return (
-            self.treated_model.predict_proba(X)[:, 1] - self.control_model.predict_proba(X)[:, 1]
-        )
+        return self.treated_model.predict_proba(X)[:, 1] - self.control_model.predict_proba(X)[:, 1]
 
     def classify(self, X: pd.DataFrame, threshold: float = 0.01) -> pd.Series:
         """Bucket customers into the four uplift archetypes."""
@@ -202,7 +211,9 @@ def evaluate(
         logger.warning(
             "Qini estimated on %d treated / %d control. Below roughly 500 per arm the "
             "coefficient is dominated by sampling noise and should not be read as a "
-            "performance figure.", int(t.sum()), int((1 - t).sum()),
+            "performance figure.",
+            int(t.sum()),
+            int((1 - t).sum()),
         )
 
     return UpliftEvaluation(
@@ -238,8 +249,15 @@ def campaign_economics(
         curve["contact_cost"] > 0, curve["net_profit"] / curve["contact_cost"], np.nan
     )
     return curve[
-        ["fraction", "n_targeted", "incremental_conversions", "gross_margin", "contact_cost",
-         "net_profit", "roi"]
+        [
+            "fraction",
+            "n_targeted",
+            "incremental_conversions",
+            "gross_margin",
+            "contact_cost",
+            "net_profit",
+            "roi",
+        ]
     ].round(3)
 
 
@@ -273,7 +291,7 @@ def simulate_campaign(
     base_rate = np.clip(base_rate, 0.01, 0.95)
 
     # Persuadable: lapsed but with mid-to-high value history.
-    true_uplift = 0.30 * recency * (monetary ** 0.5) * (1 - frequency)
+    true_uplift = 0.30 * recency * (monetary**0.5) * (1 - frequency)
     # Sleeping dogs: the most frequent buyers resent the contact.
     true_uplift -= 0.12 * np.clip(frequency - 0.8, 0, None) / 0.2
     true_uplift = np.clip(true_uplift, -0.15, 0.45)
@@ -284,7 +302,9 @@ def simulate_campaign(
 
     logger.info(
         "Simulated campaign: %d treated / %d control, true ATE=%.4f",
-        treatment.sum(), n - treatment.sum(), float(true_uplift.mean()),
+        treatment.sum(),
+        n - treatment.sum(),
+        float(true_uplift.mean()),
     )
     return treatment, outcome, true_uplift
 

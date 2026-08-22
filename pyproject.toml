@@ -57,6 +57,8 @@ ignore = ["E501", "B008"]
 # ignore it rather than changing the signature.
 "src/retail_intel/forecasting/baselines.py" = ["ARG002"]
 "src/retail_intel/forecasting/models.py" = ["ARG002"]
+# FastAPI fixes these signatures; the arguments are required even when unused.
+"app/main.py" = ["ARG001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

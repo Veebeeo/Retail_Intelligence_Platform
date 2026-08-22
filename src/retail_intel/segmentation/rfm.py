@@ -89,7 +89,11 @@ def choose_k(
     """
     rows = []
     # Silhouette on every customer is O(n^2); a sample is enough to rank K.
-    sample = X if len(X) <= 5000 else X[np.random.default_rng(random_state).choice(len(X), 5000, replace=False)]
+    sample = (
+        X
+        if len(X) <= 5000
+        else X[np.random.default_rng(random_state).choice(len(X), 5000, replace=False)]
+    )
 
     for k in k_range:
         km = KMeans(n_clusters=k, init="k-means++", n_init=10, random_state=random_state)

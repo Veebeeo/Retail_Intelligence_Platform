@@ -42,7 +42,10 @@ def load_baskets(min_basket_size: int = 2, max_basket_size: int = 60) -> pd.Data
 
     logger.info(
         "Baskets: %d invoices usable of %d (sizes %d-%d)",
-        kept["invoice_no"].nunique(), df["invoice_no"].nunique(), min_basket_size, max_basket_size,
+        kept["invoice_no"].nunique(),
+        df["invoice_no"].nunique(),
+        min_basket_size,
+        max_basket_size,
     )
     return kept
 
@@ -86,7 +89,15 @@ def mine_rules(
         logger.warning("No itemsets at min_support=%.3f. Try lowering it.", min_support)
         return pd.DataFrame()
 
-    rules = association_rules(itemsets, metric="lift", min_threshold=min_lift)
+    # mlxtend 0.24 added a required `num_itemsets` argument. Support both
+    # signatures rather than pinning the library to one minor version.
+    try:
+        rules = association_rules(
+            itemsets, num_itemsets=len(matrix), metric="lift", min_threshold=min_lift
+        )
+    except TypeError:
+        rules = association_rules(itemsets, metric="lift", min_threshold=min_lift)
+
     if rules.empty:
         logger.warning("No rules at min_lift=%.2f.", min_lift)
         return pd.DataFrame()
@@ -97,11 +108,13 @@ def mine_rules(
     rules["antecedent"] = rules["antecedents"].apply(lambda s: next(iter(s)))
     rules["consequent"] = rules["consequents"].apply(lambda s: next(iter(s)))
 
-    out = rules[
-        ["antecedent", "consequent", "support", "confidence", "lift", "leverage", "conviction"]
-    ].sort_values("lift", ascending=False).reset_index(drop=True)
+    columns = ["antecedent", "consequent", "support", "confidence", "lift"]
+    columns += [c for c in ("leverage", "conviction") if c in rules.columns]
+    out = rules[columns].sort_values("lift", ascending=False).reset_index(drop=True)
 
-    logger.info("Mined %d pairwise rules (lift %.2f-%.2f)", len(out), out["lift"].min(), out["lift"].max())
+    logger.info(
+        "Mined %d pairwise rules (lift %.2f-%.2f)", len(out), out["lift"].min(), out["lift"].max()
+    )
     return out
 
 

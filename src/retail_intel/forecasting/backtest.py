@@ -107,15 +107,21 @@ def backtest_series(
                 logger.debug("%s/%s fold %d failed: %s", stock_code, name, fold, exc)
                 results.append(
                     FoldResult(
-                        stock_code, name, fold, train_end,
-                        fit_seconds=time.perf_counter() - started, error=str(exc)[:200],
+                        stock_code,
+                        name,
+                        fold,
+                        train_end,
+                        fit_seconds=time.perf_counter() - started,
+                        error=str(exc)[:200],
                     )
                 )
     return results
 
 
 def load_panel() -> pd.DataFrame:
-    df = read_sql("SELECT stock_code, week, weekly_sales FROM ml_weekly_features ORDER BY stock_code, week")
+    df = read_sql(
+        "SELECT stock_code, week, weekly_sales FROM ml_weekly_features ORDER BY stock_code, week"
+    )
     if df.empty:
         raise RuntimeError("`ml_weekly_features` is empty. Run the feature pipeline first.")
     df["week"] = pd.to_datetime(df["week"])
@@ -143,7 +149,11 @@ def run(
     n_jobs = max(1, min(n_jobs if n_jobs > 0 else (os.cpu_count() or 1), len(skus)))
     logger.info(
         "Backtesting %d SKUs x %d models x %d folds (horizon=%d weeks, n_jobs=%d)",
-        len(skus), len(model_names), n_folds, horizon, n_jobs,
+        len(skus),
+        len(model_names),
+        n_folds,
+        horizon,
+        n_jobs,
     )
 
     series = {
@@ -190,7 +200,12 @@ def _init_worker() -> None:
     """Pin each worker to a single BLAS thread and silence library warnings."""
     import warnings
 
-    for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+    for var in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
         os.environ[var] = "1"
     warnings.filterwarnings("ignore")
 
@@ -296,7 +311,9 @@ def pick_champions(results: pd.DataFrame, baseline: str = "seasonal_naive") -> p
                 ),
             }
         )
-    return pd.DataFrame(champs).sort_values("improvement_pct", ascending=False).reset_index(drop=True)
+    return (
+        pd.DataFrame(champs).sort_values("improvement_pct", ascending=False).reset_index(drop=True)
+    )
 
 
 def main() -> None:

@@ -85,7 +85,10 @@ def load_bundle(path: Path | None = None, force: bool = False) -> ChampionBundle
         )
         logger.info(
             "Loaded champion bundle v%d (%d SKUs, trained %s): %s",
-            _BUNDLE.version, len(_BUNDLE.models), _BUNDLE.trained_at, _BUNDLE.model_mix(),
+            _BUNDLE.version,
+            len(_BUNDLE.models),
+            _BUNDLE.trained_at,
+            _BUNDLE.model_mix(),
         )
         return _BUNDLE
 
@@ -105,9 +108,7 @@ def reset_cache() -> None:
         _BUNDLE = None
 
 
-def forecast(
-    stock_code: str, horizon: int = 4, bundle: ChampionBundle | None = None
-) -> dict:
+def forecast(stock_code: str, horizon: int = 4, bundle: ChampionBundle | None = None) -> dict:
     """Forecast one SKU with its champion model.
 
     Returns the point forecast, a 95% interval and the provenance a consumer
@@ -148,7 +149,9 @@ def forecast(
     }
 
 
-def forecast_array(stock_code: str, horizon: int, bundle: ChampionBundle | None = None) -> np.ndarray:
+def forecast_array(
+    stock_code: str, horizon: int, bundle: ChampionBundle | None = None
+) -> np.ndarray:
     """Just the point forecast, for the inventory calculators."""
     bundle = bundle or load_bundle()
     return bundle.models[stock_code].predict(horizon)["yhat"].to_numpy()

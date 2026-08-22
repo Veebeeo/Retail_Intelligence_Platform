@@ -103,7 +103,9 @@ def run(
     if n_demoted:
         logger.info(
             "%d/%d SKUs kept the %s baseline: no candidate beat it",
-            n_demoted, len(champions), BASELINE,
+            n_demoted,
+            len(champions),
+            BASELINE,
         )
 
     bundle = _fit_and_persist(panel, champions, horizon, settings)
@@ -119,9 +121,7 @@ def run(
     }
 
 
-def _fit_and_persist(
-    panel: pd.DataFrame, champions: pd.DataFrame, horizon: int, settings
-) -> dict:
+def _fit_and_persist(panel: pd.DataFrame, champions: pd.DataFrame, horizon: int, settings) -> dict:
     """Refit each SKU's champion on full history and write one servable bundle."""
     models: dict[str, object] = {}
     meta: dict[str, dict] = {}
@@ -131,7 +131,9 @@ def _fit_and_persist(
         try:
             model = fit_champion(y, row.champion, settings.seasonal_period)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("%s: %s failed to fit (%s); using %s", row.stock_code, row.champion, exc, BASELINE)
+            logger.warning(
+                "%s: %s failed to fit (%s); using %s", row.stock_code, row.champion, exc, BASELINE
+            )
             model = fit_champion(y, BASELINE, settings.seasonal_period)
 
         models[row.stock_code] = model
@@ -139,7 +141,9 @@ def _fit_and_persist(
             "model": getattr(model, "name", row.champion),
             "backtest_mase": float(row.champion_mase),
             "baseline_mase": float(row.baseline_mase),
-            "improvement_pct": float(row.improvement_pct) if np.isfinite(row.improvement_pct) else None,
+            "improvement_pct": float(row.improvement_pct)
+            if np.isfinite(row.improvement_pct)
+            else None,
             "residual_std": _residual_std(y, row.champion, settings.seasonal_period, horizon),
             "n_weeks": int(len(y)),
             "last_week": str(panel.loc[panel["stock_code"] == row.stock_code, "week"].max().date()),
@@ -211,7 +215,13 @@ def _log_mlflow(summary, champions, bundle, settings, horizon: int, n_folds: int
                 }
             )
             for row in summary.itertuples():
-                for metric in ("mase_mean", "mase_median", "wape_mean", "rmse_mean", "coverage_pct"):
+                for metric in (
+                    "mase_mean",
+                    "mase_median",
+                    "wape_mean",
+                    "rmse_mean",
+                    "coverage_pct",
+                ):
                     value = getattr(row, metric, None)
                     if value is not None and np.isfinite(value):
                         mlflow.log_metric(f"{row.model}__{metric}", float(value))
@@ -222,7 +232,9 @@ def _log_mlflow(summary, champions, bundle, settings, horizon: int, n_folds: int
 
             model_dir = settings.model_path
             mlflow.log_artifacts(str(model_dir), artifact_path="champions")
-            mlflow.set_tag("champion_mix", json.dumps(champions["champion"].value_counts().to_dict()))
+            mlflow.set_tag(
+                "champion_mix", json.dumps(champions["champion"].value_counts().to_dict())
+            )
         logger.info("Logged run to MLflow at %s", settings.mlflow_tracking_uri)
     except Exception as exc:  # noqa: BLE001
         logger.warning("MLflow logging failed (%s); model artifacts were still written", exc)
@@ -256,8 +268,11 @@ def evaluate_holdout(panel: pd.DataFrame, horizon: int, seasonal_period: int) ->
                         "stock_code": sku,
                         "model": name,
                         **M.evaluate(
-                            test.to_numpy(), pred["yhat"].to_numpy(), train.to_numpy(),
-                            pred["yhat_lower"].to_numpy(), pred["yhat_upper"].to_numpy(),
+                            test.to_numpy(),
+                            pred["yhat"].to_numpy(),
+                            train.to_numpy(),
+                            pred["yhat_lower"].to_numpy(),
+                            pred["yhat_upper"].to_numpy(),
                             seasonal_period,
                         ),
                     }

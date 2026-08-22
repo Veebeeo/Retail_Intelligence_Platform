@@ -90,10 +90,14 @@ def build(name: str, seasonal_period: int = 52, **kwargs) -> Forecaster:
     if name in CANDIDATE_MODELS:
         factory, _ = CANDIDATE_MODELS[name]
         return factory(seasonal_period=seasonal_period, **kwargs)
-    raise KeyError(f"Unknown forecaster '{name}'. Known: {sorted({*BASELINE_MODELS, *CANDIDATE_MODELS})}")
+    raise KeyError(
+        f"Unknown forecaster '{name}'. Known: {sorted({*BASELINE_MODELS, *CANDIDATE_MODELS})}"
+    )
 
 
-def build_all(seasonal_period: int = 52, include: tuple[str, ...] | None = None) -> list[Forecaster]:
+def build_all(
+    seasonal_period: int = 52, include: tuple[str, ...] | None = None
+) -> list[Forecaster]:
     """Instantiate every available forecaster, or the subset in ``include``."""
     names = include or available_models()
     return [build(n, seasonal_period) for n in names if n in {*BASELINE_MODELS, *CANDIDATE_MODELS}]

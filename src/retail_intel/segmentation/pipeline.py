@@ -81,8 +81,13 @@ def run(
             uplift_report = {
                 key: result[key]
                 for key in (
-                    "metrics", "rank_correlation_with_truth", "optimal_targeting_fraction",
-                    "net_profit_at_optimum", "net_profit_targeting_all", "segment_counts", "note",
+                    "metrics",
+                    "rank_correlation_with_truth",
+                    "optimal_targeting_fraction",
+                    "net_profit_at_optimum",
+                    "net_profit_targeting_all",
+                    "segment_counts",
+                    "note",
                 )
             }
         except Exception as exc:  # noqa: BLE001
@@ -122,14 +127,18 @@ def run(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build customer segments, CLV and uplift targeting.")
+    parser = argparse.ArgumentParser(
+        description="Build customer segments, CLV and uplift targeting."
+    )
     parser.add_argument("--clv-days", type=int, default=90)
     parser.add_argument("--k", type=int, default=None, help="Force K instead of searching.")
     parser.add_argument("--no-uplift", action="store_true")
     args = parser.parse_args()
 
     report = run(clv_horizon_days=args.clv_days, k=args.k, run_uplift=not args.no_uplift)
-    logger.info("Segmentation complete for %d customers (K=%d)", report["n_customers"], report["k_selected"])
+    logger.info(
+        "Segmentation complete for %d customers (K=%d)", report["n_customers"], report["k_selected"]
+    )
 
 
 if __name__ == "__main__":

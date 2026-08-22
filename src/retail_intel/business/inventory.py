@@ -148,7 +148,9 @@ def simulate_cost(
         else settings.holding_cost_per_unit_week
     )
     stockout = (
-        stockout_cost_per_unit if stockout_cost_per_unit is not None else settings.stockout_cost_per_unit
+        stockout_cost_per_unit
+        if stockout_cost_per_unit is not None
+        else settings.stockout_cost_per_unit
     )
     service_level = service_level if service_level is not None else settings.service_level
     lead_time_weeks = lead_time_weeks or settings.lead_time_weeks
@@ -188,7 +190,9 @@ def compare_models(
 ) -> list[CostBreakdown]:
     """Cost every candidate forecast on the same actuals, cheapest first."""
     results = [
-        simulate_cost(actual, fc, forecast_stds.get(name, float(np.std(actual))), model=name, **kwargs)
+        simulate_cost(
+            actual, fc, forecast_stds.get(name, float(np.std(actual))), model=name, **kwargs
+        )
         for name, fc in forecasts.items()
     ]
     return sorted(results, key=lambda r: r.total_cost)

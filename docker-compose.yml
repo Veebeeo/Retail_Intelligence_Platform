@@ -1,34 +1,88 @@
-version: '3.8'
+# Local stack: Postgres warehouse, MLflow tracking server, API, dashboard.
+#
+# The `version:` key is gone -- Compose V2 ignores it and warns. Every service
+# has a healthcheck, and dependencies wait for health rather than for the
+# container merely to exist, which is what made the old stack race on start-up.
+
+name: retail-intelligence
 
 services:
   postgres_db:
-    image: postgres:15
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-retail_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-retail_password}
+      POSTGRES_DB: ${POSTGRES_DB:-retail_db}
     ports:
       - "5430:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    networks:
-      - retail_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-retail_user} -d ${POSTGRES_DB:-retail_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [retail_network]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.19.0
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [retail_network]
 
   web_api:
-    build: .
+    build:
+      context: .
+      target: runtime
     ports:
       - "8001:8000"
-    env_file:
-      - .env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres_db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-retail_user}:${POSTGRES_PASSWORD:-retail_password}@postgres_db:5432/${POSTGRES_DB:-retail_db}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MODEL_DIR: /app/models
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      # Champion bundles are written by the training job on the host and read
+      # by the API, so the directory is shared rather than baked in.
+      - ./models:/app/models
+      - ./reports:/app/reports
     depends_on:
-      - postgres_db
-    networks:
-      - retail_network
+      postgres_db:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    networks: [retail_network]
+
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      API_BASE_URL: http://web_api:8000
+    depends_on:
+      - web_api
+    networks: [retail_network]
 
 volumes:
   pgdata:
+  mlflow_data:
 
 networks:
   retail_network:
+    driver: bridge
