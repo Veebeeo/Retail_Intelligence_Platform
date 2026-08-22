@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-08-22T08:47:08.848070+00:00",
+  "current_window_weeks": 6,
+  "reference_rows": 742,
+  "current_rows": 60,
+  "verdict": "significant",
+  "n_flagged": 8,
+  "results": [
+    {
+      "feature": "weekly_sales",
+      "test": "psi",
+      "statistic": 1.28287,
+      "p_value": null,
+      "severity": "significant",
+      "reference_mean": 6.03908,
+      "current_mean": 4.36667,
+      "pct_change": -27.69322
+    },
+    {
+      "feature": "weekly_sales",
+      "test": "ks",
+      "statistic": 0.19551,
+      "p_value": 0.02454,
+      "severity": "moderate",
+      "reference_mean": 6.03908,
+      "current_mean": 4.36667,
+      "pct_change": null
+    },
+    {
+      "feature": "weekly_revenue",
+      "test": "psi",
+      "statistic": 0.24561,
+      "p_value": null,
+      "severity": "moderate",
+      "reference_mean": 21.40395,
+      "current_mean": 16.17,
+      "pct_change": -24.45319
+    },
+    {
+      "feature": "weekly_revenue",
+      "test": "ks",
+      "statistic": 0.13387,
+      "p_value": 0.24834,
+      "severity": "moderate",
+      "reference_mean": 21.40395,
+      "current_mean": 16.17,
+      "pct_change": null
+    },
+    {
+      "feature": "lag_1_week",
+      "test": "psi",
+      "statistic": 1.15537,
+      "p_value": null,
+      "severity": "significant",
+      "reference_mean": 6.05874,
+      "current_mean": 4.5,
+      "pct_change": -25.72717
+    },
+    {
+      "feature": "lag_1_week",
+      "test": "ks",
+      "statistic": 0.16803,
+      "p_value": 0.07731,
+      "severity": "moderate",
+      "reference_mean": 6.05874,
+      "current_mean": 4.5,
+      "pct_change": null
+    },
+    {
+      "feature": "rolling_4_wk_avg",
+      "test": "psi",
+      "statistic": 0.35288,
+      "p_value": null,
+      "severity": "significant",
+      "reference_mean": 6.03985,
+      "current_mean": 5.0875,
+      "pct_change": -15.76771
+    },
+    {
+      "feature": "rolling_4_wk_avg",
+      "test": "ks",
+      "statistic": 0.22896,
+      "p_value": 0.00489,
+      "severity": "significant",
+      "reference_mean": 6.03985,
+      "current_mean": 5.0875,
+      "pct_change": null
+    },
+    {
+      "feature": "stock_code",
+      "test": "chi2",
+      "statistic": 0.00173,
+      "p_value": 1.0,
+      "severity": "stable",
+      "reference_mean": null,
+      "current_mean": null,
+      "pct_change": null
+    },
+    {
+      "feature": "stock_code",
+      "test": "psi_categorical",
+      "statistic": 3e-05,
+      "p_value": null,
+      "severity": "stable",
+      "reference_mean": null,
+      "current_mean": null,
+      "pct_change": null
+    }
+  ],
+  "recommendation": "Retrain. The serving distribution has moved away from the training data."
+}

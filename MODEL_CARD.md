@@ -124,16 +124,34 @@ make features
 make train
 ```
 
-What the synthetic backtest shows, and what is worth checking on real data:
+Committed run: 20 SKUs, 3 rolling origins, 4-week horizon, 60 folds per model.
 
-- Classical and naive methods are competitive. In one representative run SARIMA
-  scored a mean MASE of **1.06** — *worse than seasonal naive* — with a **+34%**
-  forecast bias, while a 4-week moving average scored **0.83**.
-- Champion mix is mixed across SKUs. No single model wins everywhere, which is
-  the argument for per-SKU selection.
-- If SARIMA turns out to lose to seasonal naive on the real data too, that is a
-  finding worth reporting, not a failure worth hiding. It is the expected
-  outcome for short, noisy, promotion-driven SKU series.
+| Model | MASE (mean) | MASE (median) | WAPE | Bias | Coverage | Wins vs baseline |
+| --- | --- | --- | --- | --- | --- | --- |
+| `moving_average` | **0.878** | 0.827 | 108.7% | +42.1% | 96.7% | 50% |
+| `xgboost` | 0.882 | 0.812 | 102.9% | +34.5% | 87.5% | 50% |
+| `seasonal_naive` | 0.920 | 0.830 | 115.6% | +20.0% | 93.8% | *(baseline)* |
+| `seasonal_drift` | 0.922 | 0.820 | 115.9% | +19.1% | 97.1% | 60% |
+| `naive` | 0.988 | 0.887 | 119.2% | +50.8% | 97.9% | 45% |
+| `sarima` | 1.017 | 0.948 | 111.8% | +33.9% | 87.9% | 45% |
+
+**SARIMA scores above 1.0** — it loses to repeating last year's value, at roughly
+1800x the compute cost per fit. This is the expected outcome for short, noisy,
+promotion-driven SKU series, and it is exactly what a single MAPE figure with no
+baseline conceals. Reporting it is the point.
+
+Per-SKU selection beats every individual model: **mean champion MASE 0.729**
+against the best single model's 0.878, median improvement over baseline 16.9%.
+80% of SKUs get a model that beats seasonal naive; the other 20% are served by
+the baseline, which is the correct outcome rather than a failure.
+
+Champion mix: `naive` 5, `moving_average` 4, `seasonal_naive` 4, `xgboost` 3,
+`sarima` 2, `seasonal_drift` 2. Picking one global winner would have been wrong
+for 16 of 20 SKUs.
+
+Every model over-forecasts here (bias positive throughout), which sustained
+would quietly accumulate stock — a failure absolute error alone would not
+surface.
 
 ## Business translation
 

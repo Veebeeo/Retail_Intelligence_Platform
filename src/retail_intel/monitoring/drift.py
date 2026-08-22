@@ -89,6 +89,11 @@ def population_stability_index(
     return float(np.sum((cur_pct - ref_pct) * np.log(cur_pct / ref_pct)))
 
 
+def _json_safe(df: pd.DataFrame) -> pd.DataFrame:
+    """Replace NaN and infinity with None so the frame can be serialised."""
+    return df.replace([np.inf, -np.inf], np.nan).astype(object).where(pd.notna(df), None)
+
+
 def severity_from_psi(psi: float) -> str:
     if psi >= PSI_SIGNIFICANT:
         return "significant"
@@ -244,7 +249,10 @@ def run(current_weeks: int = 8) -> dict:
         "current_rows": len(current),
         "verdict": verdict,
         "n_flagged": len(flagged),
-        "results": results.to_dict(orient="records"),
+        # PSI has no p-value and some percentage changes are undefined, so the
+        # frame carries NaN. `json.dumps` emits bare `NaN`, which is not valid
+        # JSON -- Starlette rejects it and the endpoint 500s. Convert to null.
+        "results": _json_safe(results).to_dict(orient="records"),
         "recommendation": {
             "stable": "No action. Continue on the current champion models.",
             "moderate": "Watch. Re-run the backtest and confirm champion selection still holds.",

@@ -140,3 +140,29 @@ def test_unexpected_columns_fail_the_contract(weekly_panel):
 
     with pytest.raises(pa.errors.SchemaErrors):
         validate(weekly_panel.assign(surprise=1), WeeklyFeatureSchema)
+
+
+def test_drift_report_is_json_serialisable(seeded_db):
+    """PSI has no p-value, so the results frame carries NaN. `json.dumps`
+    emits a bare `NaN`, which is not valid JSON and made /drift return 500."""
+    import json
+
+    from retail_intel.monitoring.drift import run
+
+    report = run(current_weeks=6)
+    encoded = json.dumps(report, allow_nan=False)
+    assert "NaN" not in encoded
+    assert json.loads(encoded)["verdict"] in {"stable", "moderate", "significant"}
+
+
+def test_drift_endpoint_returns_a_report(seeded_db):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from retail_intel.monitoring.drift import run
+
+    run(current_weeks=6)
+    with TestClient(app) as client:
+        response = client.get("/drift")
+    assert response.status_code == 200
+    assert response.json()["verdict"] in {"stable", "moderate", "significant"}

@@ -39,9 +39,15 @@ mlartifacts/
 mlflow.db
 models/*
 !models/.gitkeep
-reports/*.json
+reports/backtest_folds.csv
 reports/*.html
 !reports/.gitkeep
+# Summary reports ARE committed, so the results quoted in the README have a
+# backing artifact a reviewer can open without running the pipeline.
+!reports/backtest_summary.csv
+!reports/champions.csv
+!reports/segment_profile.csv
+!reports/*.json
 
 # OS / editor
 .DS_Store

@@ -1,0 +1,117 @@
+{
+  "n_customers": 88,
+  "k_selected": 2,
+  "k_search": [
+    {
+      "k": 2,
+      "inertia": 133.9920665078357,
+      "silhouette": 0.41172887994317864,
+      "calinski_harabasz": 83.44286771390533
+    },
+    {
+      "k": 3,
+      "inertia": 99.59217139264257,
+      "silhouette": 0.38525114559421053,
+      "calinski_harabasz": 70.1594574965647
+    },
+    {
+      "k": 4,
+      "inertia": 72.74088748129634,
+      "silhouette": 0.34569037218233967,
+      "calinski_harabasz": 73.62097626181267
+    },
+    {
+      "k": 5,
+      "inertia": 56.36590414733354,
+      "silhouette": 0.3512184645209265,
+      "calinski_harabasz": 76.43641229778171
+    },
+    {
+      "k": 6,
+      "inertia": 46.17624015207923,
+      "silhouette": 0.3700565656074847,
+      "calinski_harabasz": 77.36250612307695
+    },
+    {
+      "k": 7,
+      "inertia": 39.41148497959022,
+      "silhouette": 0.353116365367065,
+      "calinski_harabasz": 76.93049257965455
+    },
+    {
+      "k": 8,
+      "inertia": 34.98617217662317,
+      "silhouette": 0.34607316587387965,
+      "calinski_harabasz": 74.80958123103368
+    }
+  ],
+  "segment_profile": [
+    {
+      "segment_label": "Champions",
+      "customers": 37,
+      "avg_recency_days": 107.84,
+      "avg_frequency": 8.41,
+      "avg_monetary": 406.81,
+      "total_revenue": 15052.08,
+      "avg_order_value": 47.09,
+      "revenue_share_pct": 81.48
+    },
+    {
+      "segment_label": "At-Risk High Value",
+      "customers": 51,
+      "avg_recency_days": 350.12,
+      "avg_frequency": 1.88,
+      "avg_monetary": 67.08,
+      "total_revenue": 3421.14,
+      "avg_order_value": 41.36,
+      "revenue_share_pct": 18.52
+    }
+  ],
+  "clv": {
+    "bgnbd": {
+      "r": 0.5651,
+      "alpha": 32.4377,
+      "a": 4381460.2896,
+      "b": 39701285.1336,
+      "log_likelihood": -1646.36,
+      "converged": false
+    },
+    "gamma_gamma": {
+      "p": 1.3747,
+      "q": 12.9664,
+      "v": 379.4417,
+      "converged": true
+    },
+    "horizon_days": 90,
+    "spend_frequency_corr": 0.2394,
+    "n_customers": 88
+  },
+  "clv_summary": {
+    "total_predicted_clv": 2002.06,
+    "mean_predicted_clv": 22.75,
+    "mean_churn_probability": 0.3602,
+    "high_risk_high_value_customers": 3
+  },
+  "uplift": {
+    "metrics": {
+      "qini_coefficient": 2.7218,
+      "auuc": 0.1987,
+      "uplift_at_10pct": 0.0,
+      "uplift_at_30pct": 0.2,
+      "overall_ate": -0.0165,
+      "n_treated": 14,
+      "n_control": 13
+    },
+    "rank_correlation_with_truth": -0.0965,
+    "optimal_targeting_fraction": 0.296,
+    "net_profit_at_optimum": 21.0,
+    "net_profit_targeting_all": -19.269,
+    "segment_counts": {
+      "persuadable": 54,
+      "lost_cause": 19,
+      "sleeping_dog": 14,
+      "sure_thing": 1
+    },
+    "note": "Campaign assignment is simulated; the source data contains no control group."
+  }
+}

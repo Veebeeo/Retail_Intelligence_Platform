@@ -1,0 +1,52 @@
+{
+  "run_at": "2026-08-22T08:47:08.852123+00:00",
+  "total_seconds": 2.7,
+  "steps": [
+    {
+      "name": "features",
+      "status": "success",
+      "seconds": 0.11,
+      "detail": {
+        "rows": 802,
+        "skus": 10
+      },
+      "error": null
+    },
+    {
+      "name": "segment",
+      "status": "success",
+      "seconds": 2.45,
+      "detail": {
+        "n_customers": 88,
+        "k": 2,
+        "clv": {
+          "total_predicted_clv": 2002.06,
+          "mean_predicted_clv": 22.75,
+          "mean_churn_probability": 0.3602,
+          "high_risk_high_value_customers": 3
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "baskets",
+      "status": "success",
+      "seconds": 0.12,
+      "detail": {
+        "n_rules": 84,
+        "max_lift": 1.8
+      },
+      "error": null
+    },
+    {
+      "name": "drift",
+      "status": "success",
+      "seconds": 0.02,
+      "detail": {
+        "verdict": "significant",
+        "n_flagged": 8
+      },
+      "error": null
+    }
+  ]
+}

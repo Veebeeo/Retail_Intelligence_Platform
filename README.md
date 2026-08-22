@@ -127,30 +127,58 @@ detail.
 
 Reproduce with `make backtest`. Reports land in `reports/`.
 
-> **The committed reports were generated on synthetic data.** Online Retail II
-> is not redistributable and CI runs on a clean checkout, so the repository
-> ships a generator that produces realistic series — trend, annual seasonality,
-> promotional spikes, customer churn and complementary product pairs. Re-run
-> against the real workbook before quoting any figure.
+> **These numbers come from generated data.** Online Retail II is not
+> redistributable and CI runs on a clean checkout, so the repository ships a
+> generator producing realistic series — trend, annual seasonality, promotional
+> spikes, customer acquisition and churn, and deliberately planted complementary
+> product pairs. The reports in `reports/` are committed so the figures below
+> have a backing artifact, but **re-run against the real workbook before quoting
+> any of them.**
 
-A representative synthetic run (12 SKUs, 4 folds, 4-week horizon):
+The committed run: 20 SKUs, 3 rolling origins, 4-week horizon, 60 folds per
+model. Full output in [`reports/backtest_summary.csv`](reports/backtest_summary.csv).
 
-| Model | MASE (mean) | WAPE | Bias | Coverage | Beats baseline |
-| --- | --- | --- | --- | --- | --- |
-| `moving_average` | **0.834** | 39.0% | −1.8% | 94.8% | 66.7% |
-| `xgboost` | 0.875 | 51.1% | +13.0% | 79.7% | 75.0% |
-| `naive` | 0.985 | 37.2% | −19.7% | 97.4% | 58.3% |
-| `sarima` | 1.061 | 72.2% | +33.9% | 84.4% | 41.7% |
-| `seasonal_naive` | 1.097 | 189.5% | — | 89.6% | — |
+| Model | MASE (mean) | MASE (median) | WAPE | Bias | Coverage | Wins vs baseline | Fit time |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `moving_average` | **0.878** | 0.827 | 108.7% | +42.1% | 96.7% | 50% | 0.004s |
+| `xgboost` | 0.882 | 0.812 | 102.9% | +34.5% | 87.5% | 50% | 0.512s |
+| `seasonal_naive` | 0.920 | 0.830 | 115.6% | +20.0% | 93.8% | — *(baseline)* | 0.005s |
+| `seasonal_drift` | 0.922 | 0.820 | 115.9% | +19.1% | 97.1% | 60% | 0.006s |
+| `naive` | 0.988 | 0.887 | 119.2% | +50.8% | 97.9% | 45% | 0.005s |
+| `sarima` | 1.017 | 0.948 | 111.8% | +33.9% | 87.9% | 45% | 8.911s |
 
-The interesting result is that **SARIMA — the model this project previously
-declared its production champion — scores worse than seasonal naive**, with a
-+34% forecast bias. That is not a bug. It is the expected outcome for short,
-noisy, promotion-driven SKU series, and it is precisely the finding that
-reporting a single MAPE figure with no baseline conceals.
+Three things worth reading off that table.
 
-The champion mix is spread across models, which is the argument for per-SKU
-selection rather than picking one winner globally.
+**SARIMA — the model this project previously declared its production champion —
+is the worst of the six, and the only one scoring above 1.0.** A MASE above 1
+means it loses to repeating last year's value, while costing ~1800x more compute
+per fit. That is not a bug: it is the expected outcome for short, noisy,
+promotion-driven SKU series with barely two seasonal cycles of history. It is
+also precisely what reporting a single MAPE figure with no baseline conceals.
+
+**No model dominates.** The best mean MASE belongs to a 4-week moving average,
+but it wins on only half the SKUs. Champion mix across the catalogue:
+
+| Champion | SKUs |
+| --- | --- |
+| `naive` | 5 |
+| `moving_average` | 4 |
+| `seasonal_naive` *(nothing beat the baseline)* | 4 |
+| `xgboost` | 3 |
+| `sarima` | 2 |
+| `seasonal_drift` | 2 |
+
+That spread is the argument for per-SKU selection. Picking one global winner
+would have been wrong for 16 of 20 SKUs.
+
+**Per-SKU selection beats every individual model.** Mean champion MASE is
+**0.729** against the best single model's 0.878, with a median improvement of
+**16.9%** over baseline. 80% of SKUs get a model that beats seasonal naive; the
+remaining 20% are served by the baseline itself, which is the honest outcome
+rather than a failure.
+
+Every model over-forecasts on this data (positive bias throughout) — worth
+knowing, since sustained over-forecasting quietly accumulates stock.
 
 ---
 
@@ -372,7 +400,7 @@ Stated because they are real, not because they are small:
   seasonal terms are weakly identified.
 - **UK-dominated** (~90% of rows).
 - **Uplift is validated, not measured.** No control group exists in this data.
-- **Committed metrics are from synthetic data.** Re-run on the real workbook.
+- **Committed metrics are from generated data.** Re-run on the real workbook.
 - **Forecasts are not causal.** Nothing here says what demand would be at a
   different price.
 
