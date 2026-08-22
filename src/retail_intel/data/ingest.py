@@ -42,8 +42,19 @@ COLUMN_MAP = {
 
 # Service lines and adjustments, not sellable inventory.
 NON_PRODUCT_CODES = {
-    "POST", "DOT", "M", "m", "C2", "CRUK", "BANK CHARGES", "B",
-    "AMAZONFEE", "S", "D", "PADS", "GIFT",
+    "POST",
+    "DOT",
+    "M",
+    "m",
+    "C2",
+    "CRUK",
+    "BANK CHARGES",
+    "B",
+    "AMAZONFEE",
+    "S",
+    "D",
+    "PADS",
+    "GIFT",
 }
 
 
@@ -98,7 +109,9 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     df["total_price"] = df["quantity"] * df["unit_price"]
 
     df = df[list(TransactionSchema.columns)].reset_index(drop=True)
-    logger.info("Cleaned %d -> %d rows (%.1f%% retained)", start, len(df), 100 * len(df) / max(start, 1))
+    logger.info(
+        "Cleaned %d -> %d rows (%.1f%% retained)", start, len(df), 100 * len(df) / max(start, 1)
+    )
     return df
 
 
@@ -134,9 +147,7 @@ def _remove_cancellations(df: pd.DataFrame) -> pd.DataFrame:
             to_drop.append(idx)
             remaining = remaining.drop(idx)
 
-    logger.info(
-        "Removed %d credit notes and %d reversed sale lines", len(cancels), len(to_drop)
-    )
+    logger.info("Removed %d credit notes and %d reversed sale lines", len(cancels), len(to_drop))
     return df.drop(index=list(cancels.index) + to_drop)
 
 
@@ -148,7 +159,9 @@ def run(path: str | Path, sheet_name: str | int | None = None, if_exists: str = 
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest raw retail transactions into the warehouse.")
+    parser = argparse.ArgumentParser(
+        description="Ingest raw retail transactions into the warehouse."
+    )
     parser.add_argument("--path", default="data/online_retail_II.xlsx")
     parser.add_argument(
         "--sheet", default=None, help="Sheet name; omit to read and concatenate every sheet."

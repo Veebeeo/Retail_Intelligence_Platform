@@ -88,7 +88,9 @@ def validate(df: pd.DataFrame, schema: DataFrameSchema, *, lazy: bool = True) ->
             .sort_values(ascending=False)
             .head(10)
         )
-        logger.error("Contract '%s' failed on %d rows:\n%s", schema.name, len(exc.failure_cases), summary)
+        logger.error(
+            "Contract '%s' failed on %d rows:\n%s", schema.name, len(exc.failure_cases), summary
+        )
         raise
     logger.info("Contract '%s' passed: %d rows, %d columns", schema.name, *validated.shape)
     return validated

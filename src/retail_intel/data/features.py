@@ -33,9 +33,7 @@ ROLLING_WINDOWS = (4, 12)
 
 
 def load_transactions() -> pd.DataFrame:
-    df = read_sql(
-        "SELECT stock_code, invoice_date, quantity, total_price FROM transactions"
-    )
+    df = read_sql("SELECT stock_code, invoice_date, quantity, total_price FROM transactions")
     if df.empty:
         raise RuntimeError("`transactions` is empty. Run the ingest pipeline first.")
     df["invoice_date"] = pd.to_datetime(df["invoice_date"])
@@ -80,8 +78,12 @@ def to_weekly_panel(df: pd.DataFrame) -> pd.DataFrame:
 
     out = pd.concat(panels, ignore_index=True).sort_values(["stock_code", "week"])
     filled = len(out) - len(weekly)
-    logger.info("Weekly panel: %d rows across %d SKUs (%d zero-demand weeks made explicit)",
-                len(out), out["stock_code"].nunique(), filled)
+    logger.info(
+        "Weekly panel: %d rows across %d SKUs (%d zero-demand weeks made explicit)",
+        len(out),
+        out["stock_code"].nunique(),
+        filled,
+    )
     return out.reset_index(drop=True)
 
 
@@ -102,9 +104,7 @@ def add_features(panel: pd.DataFrame) -> pd.DataFrame:
         rolled = prior.groupby(df["stock_code"], sort=False).rolling(window, min_periods=1)
         df[f"rolling_{window}_wk_avg"] = rolled.mean().reset_index(level=0, drop=True)
         if window == 4:
-            df["rolling_4_wk_std"] = (
-                rolled.std().reset_index(level=0, drop=True).fillna(0.0)
-            )
+            df["rolling_4_wk_std"] = rolled.std().reset_index(level=0, drop=True).fillna(0.0)
 
     df["month"] = df["week"].dt.month.astype(int)
     df["week_of_year"] = df["week"].dt.isocalendar().week.astype(int)

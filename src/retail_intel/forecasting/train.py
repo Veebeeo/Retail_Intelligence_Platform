@@ -57,21 +57,27 @@ def fit_champion(y: pd.Series, model_name: str, seasonal_period: int):
     return model
 
 
-def _residual_std(y: pd.Series, model_name: str, seasonal_period: int, horizon: int) -> float:
+def residual_std_from_folds(
+    folds: pd.DataFrame, stock_code: str, model: str, fallback: float
+) -> float:
     """Out-of-sample forecast-error sigma, for sizing safety stock.
 
-    Measured on a held-out tail rather than in-sample, because safety stock
-    built on in-sample residuals is systematically too small.
+    Taken from the backtest folds rather than re-fitting the model on a fresh
+    holdout. Two reasons: the backtest already measured exactly this quantity
+    across several forecast origins, so the average is more stable than a
+    single tail split; and refitting doubled the cost of the training job for
+    no new information -- a SARIMA fit on two years of weekly history with a
+    52-period seasonal term takes minutes, and it was being paid twice per SKU.
+
+    RMSE is the right column: it is the root mean squared *forecast error*,
+    which is the standard deviation of that error for an unbiased forecast.
     """
-    if len(y) <= horizon + 8:
-        return float(y.std())
-    cut = len(y) - horizon
-    try:
-        probe = build(model_name, seasonal_period=seasonal_period).fit(y.iloc[:cut])
-        err = y.iloc[cut:].to_numpy() - probe.predict(horizon)["yhat"].to_numpy()
-        return float(np.std(err)) or float(y.std())
-    except Exception:  # noqa: BLE001
-        return float(y.std())
+    rows = folds[
+        (folds["stock_code"] == stock_code) & (folds["model"] == model) & folds["error"].isna()
+    ]
+    if rows.empty or not np.isfinite(rows["rmse"]).any():
+        return float(fallback)
+    return float(rows["rmse"].mean())
 
 
 def run(
@@ -108,7 +114,7 @@ def run(
             BASELINE,
         )
 
-    bundle = _fit_and_persist(panel, champions, horizon, settings)
+    bundle = _fit_and_persist(panel, champions, horizon, settings, folds)
     if log_to_mlflow:
         _log_mlflow(summary, champions, bundle, settings, horizon, n_folds)
 
@@ -121,7 +127,9 @@ def run(
     }
 
 
-def _fit_and_persist(panel: pd.DataFrame, champions: pd.DataFrame, horizon: int, settings) -> dict:
+def _fit_and_persist(
+    panel: pd.DataFrame, champions: pd.DataFrame, horizon: int, settings, folds: pd.DataFrame
+) -> dict:
     """Refit each SKU's champion on full history and write one servable bundle."""
     models: dict[str, object] = {}
     meta: dict[str, dict] = {}
@@ -144,7 +152,9 @@ def _fit_and_persist(panel: pd.DataFrame, champions: pd.DataFrame, horizon: int,
             "improvement_pct": float(row.improvement_pct)
             if np.isfinite(row.improvement_pct)
             else None,
-            "residual_std": _residual_std(y, row.champion, settings.seasonal_period, horizon),
+            "residual_std": residual_std_from_folds(
+                folds, row.stock_code, row.champion, fallback=float(y.std())
+            ),
             "n_weeks": int(len(y)),
             "last_week": str(panel.loc[panel["stock_code"] == row.stock_code, "week"].max().date()),
             "mean_weekly_sales": float(y.mean()),
