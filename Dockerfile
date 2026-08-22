@@ -1,11 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Serving image. Excludes the training and analysis stack (mlflow, mlxtend,
-# pandera, prophet), which the API never imports.
-#
-# It does carry statsmodels and xgboost: a champion bundle is a pickle of
-# fitted model objects, so serving needs whatever library produced the winner.
-# See the header of requirements.txt.
+# Serving image. Carries no modelling library at all -- not statsmodels, not
+# xgboost, not prophet. The training job persists precomputed forecast paths
+# rather than fitted model objects, so answering a request is an array slice.
+# See retail_intel.forecasting.serving.
 
 # --- build stage ----------------------------------------------------------
 FROM python:3.11-slim AS builder

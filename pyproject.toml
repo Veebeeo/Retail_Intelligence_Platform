@@ -10,6 +10,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 
+# Core: what the API needs to serve. Modelling libraries are extras, because
+# the bundle holds precomputed forecast paths rather than fitted models.
 dependencies = [
     "pandas>=2.2,<3",
     "numpy>=1.26,<3",
@@ -19,16 +21,25 @@ dependencies = [
     "pydantic>=2.9,<3",
     "pydantic-settings>=2.5,<3",
     "python-dotenv>=1.0,<2",
-    "statsmodels>=0.14,<0.15",
-    "scikit-learn>=1.5,<2",
 ]
 
 [project.optional-dependencies]
 api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.32,<1"]
-ml = ["mlflow>=2.18,<3", "xgboost>=2.1,<3", "prophet>=1.1.6,<2", "mlxtend>=0.23,<1", "pandera>=0.22,<1"]
+ml = [
+    "statsmodels>=0.14,<0.15",
+    "scikit-learn>=1.5,<2",
+    "mlflow>=2.18,<3",
+    "xgboost>=2.1,<3",
+    "prophet>=1.1.6,<2",
+    "mlxtend>=0.23,<1",
+    "pandera>=0.22,<1",
+    "openpyxl>=3.1,<4",
+]
 dash = ["streamlit>=1.40,<2", "requests>=2.32,<3", "altair>=5.4,<6"]
 orchestration = ["prefect>=3.1,<4"]
 dev = ["pytest>=8.3,<9", "pytest-cov>=6.0,<7", "httpx>=0.28,<1", "ruff>=0.8,<1"]
+# `pip install -e ".[all]"` for a full development environment.
+all = ["retail-intel[api,ml,dash,dev,orchestration]"]
 
 [project.scripts]
 retail-ingest = "retail_intel.data.ingest:main"

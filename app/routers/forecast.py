@@ -14,7 +14,7 @@ from app.schemas import (
 )
 from retail_intel.business import inventory as INV
 from retail_intel.config import get_settings
-from retail_intel.forecasting.serving import bundle_summary, forecast
+from retail_intel.forecasting.serving import bundle_summary, forecast, forecast_array
 from retail_intel.logging_conf import get_logger
 
 logger = get_logger(__name__)
@@ -67,7 +67,7 @@ def post_inventory_policy(payload: InventoryRequest):
         source = "supplied" if payload.service_level else "configured default"
 
     horizon = max(payload.lead_time_weeks, 1)
-    preds = bundle.models[sku].predict(horizon)["yhat"].to_numpy()
+    preds = forecast_array(sku, horizon, bundle)
     residual_std = float(bundle.meta.get(sku, {}).get("residual_std") or np.std(preds))
 
     policy = INV.build_policy(sku, preds, residual_std, payload.lead_time_weeks, service_level)

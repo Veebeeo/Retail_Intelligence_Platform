@@ -43,6 +43,9 @@ class Settings(BaseSettings):
         52, description="Weeks in a seasonal cycle. Weekly retail data is annual."
     )
     forecast_horizon: int = Field(4, description="Weeks ahead the champion is selected on.")
+    max_forecast_horizon: int = Field(
+        26, description="Longest path precomputed at training and servable by the API."
+    )
     min_train_weeks: int = Field(
         26, description="Minimum history before a SKU is eligible for modelling."
     )

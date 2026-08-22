@@ -1,9 +1,20 @@
 """Loading trained champions at serving time.
 
-The API needs a forecast in milliseconds, so models are unpickled once at
-start-up and held in memory rather than refitted per request. If no bundle
-exists the loader says so plainly — the API then reports itself degraded
-instead of quietly inventing numbers, which is what the previous version did.
+The bundle holds **precomputed forecast paths**, not fitted model objects.
+Because every champion is univariate with no exogenous inputs, and no new data
+arrives between retrains, the forecast for any horizon is fixed the moment the
+model is fitted — so storing the path is equivalent to storing the model, and
+serving becomes an array slice rather than a model call.
+
+That choice is what keeps the bundle small enough to ship. A fitted SARIMAX
+result with a 52-period seasonal term pickles to roughly 220 MB because it
+carries the Kalman smoother state for every observation; an earlier version of
+this bundle was 445 MB for twenty SKUs. It also means the serving image needs
+neither statsmodels nor xgboost.
+
+If no bundle exists the loader says so plainly — the API then reports itself
+degraded rather than quietly inventing numbers, which is what the version
+before this one did.
 """
 
 from __future__ import annotations
@@ -14,7 +25,6 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -30,20 +40,22 @@ _BUNDLE: ChampionBundle | None = None
 
 @dataclass
 class ChampionBundle:
-    models: dict[str, Any]
+    #: stock_code -> {"yhat": [...], "yhat_lower": [...], "yhat_upper": [...]}
+    forecasts: dict[str, dict[str, list[float]]]
     meta: dict[str, dict]
     seasonal_period: int
     horizon: int
+    max_horizon: int
     trained_at: str
     version: int
     source: Path
 
     def has(self, stock_code: str) -> bool:
-        return stock_code in self.models
+        return stock_code in self.forecasts
 
     @property
     def skus(self) -> list[str]:
-        return sorted(self.models)
+        return sorted(self.forecasts)
 
     def model_mix(self) -> dict[str, int]:
         counts: dict[str, int] = {}
@@ -84,19 +96,27 @@ def load_bundle(path: Path | None = None, force: bool = False) -> ChampionBundle
                 "or retrain with that model excluded from the candidate set."
             ) from exc
 
+        if "forecasts" not in raw:
+            raise ModelNotAvailable(
+                f"The bundle at {target} was written by an older version that stored "
+                "model objects. Re-run the training pipeline to regenerate it."
+            )
+
         _BUNDLE = ChampionBundle(
-            models=raw["models"],
+            forecasts=raw["forecasts"],
             meta=raw["meta"],
             seasonal_period=raw.get("seasonal_period", 52),
             horizon=raw.get("horizon", 4),
+            max_horizon=raw.get("max_horizon", 26),
             trained_at=raw.get("trained_at", "unknown"),
             version=int(raw.get("version", 1)),
             source=target,
         )
         logger.info(
-            "Loaded champion bundle v%d (%d SKUs, trained %s): %s",
+            "Loaded champion bundle v%d (%d SKUs, %d-week paths, trained %s): %s",
             _BUNDLE.version,
-            len(_BUNDLE.models),
+            len(_BUNDLE.forecasts),
+            _BUNDLE.max_horizon,
             _BUNDLE.trained_at,
             _BUNDLE.model_mix(),
         )
@@ -128,10 +148,14 @@ def forecast(stock_code: str, horizon: int = 4, bundle: ChampionBundle | None = 
     bundle = bundle or load_bundle()
     if not bundle.has(stock_code):
         raise KeyError(stock_code)
+    if horizon > bundle.max_horizon:
+        raise ValueError(
+            f"Horizon {horizon} exceeds the {bundle.max_horizon} weeks precomputed at "
+            "training time. Raise MAX_FORECAST_HORIZON and retrain."
+        )
 
-    model = bundle.models[stock_code]
+    path = bundle.forecasts[stock_code]
     meta = bundle.meta.get(stock_code, {})
-    preds = model.predict(horizon)
 
     last_week = pd.Timestamp(meta.get("last_week", datetime.now().date()))
     weeks = pd.date_range(last_week + pd.Timedelta(weeks=1), periods=horizon, freq="W-MON")
@@ -139,7 +163,7 @@ def forecast(stock_code: str, horizon: int = 4, bundle: ChampionBundle | None = 
     return {
         "stock_code": stock_code,
         "horizon_weeks": horizon,
-        "model": meta.get("model", getattr(model, "name", "unknown")),
+        "model": meta.get("model", "unknown"),
         "model_version": bundle.version,
         "trained_at": bundle.trained_at,
         "backtest_mase": meta.get("backtest_mase"),
@@ -150,9 +174,9 @@ def forecast(stock_code: str, horizon: int = 4, bundle: ChampionBundle | None = 
             {
                 "week_horizon": i + 1,
                 "week_starting": weeks[i].date().isoformat(),
-                "predicted_quantity": round(float(preds["yhat"].iloc[i]), 2),
-                "lower_95": round(float(preds["yhat_lower"].iloc[i]), 2),
-                "upper_95": round(float(preds["yhat_upper"].iloc[i]), 2),
+                "predicted_quantity": round(float(path["yhat"][i]), 2),
+                "lower_95": round(float(path["yhat_lower"][i]), 2),
+                "upper_95": round(float(path["yhat_upper"][i]), 2),
             }
             for i in range(horizon)
         ],
@@ -164,7 +188,9 @@ def forecast_array(
 ) -> np.ndarray:
     """Just the point forecast, for the inventory calculators."""
     bundle = bundle or load_bundle()
-    return bundle.models[stock_code].predict(horizon)["yhat"].to_numpy()
+    if not bundle.has(stock_code):
+        raise KeyError(stock_code)
+    return np.asarray(bundle.forecasts[stock_code]["yhat"][:horizon], dtype=float)
 
 
 def bundle_summary(bundle: ChampionBundle | None = None) -> dict:
@@ -175,7 +201,7 @@ def bundle_summary(bundle: ChampionBundle | None = None) -> dict:
     return {
         "version": bundle.version,
         "trained_at": bundle.trained_at,
-        "n_skus": len(bundle.models),
+        "n_skus": len(bundle.forecasts),
         "seasonal_period": bundle.seasonal_period,
         "model_mix": bundle.model_mix(),
         "mean_backtest_mase": round(float(np.mean(mases)), 4) if mases else None,

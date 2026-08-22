@@ -41,7 +41,7 @@ def health():
         "database": db_status,
         "models_loaded": bundle is not None,
         "model_version": bundle.version if bundle else None,
-        "n_skus": len(bundle.models) if bundle else None,
+        "n_skus": len(bundle.forecasts) if bundle else None,
         "detail": None if healthy else "Run the training pipeline and check DATABASE_URL.",
     }
 

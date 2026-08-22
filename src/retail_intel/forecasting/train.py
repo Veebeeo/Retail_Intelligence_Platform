@@ -123,15 +123,31 @@ def run(
         "summary": summary,
         "champions": champions,
         "folds": folds,
-        "n_models": len(bundle["models"]),
+        "n_models": len(bundle["forecasts"]),
     }
 
 
 def _fit_and_persist(
     panel: pd.DataFrame, champions: pd.DataFrame, horizon: int, settings, folds: pd.DataFrame
 ) -> dict:
-    """Refit each SKU's champion on full history and write one servable bundle."""
-    models: dict[str, object] = {}
+    """Refit each SKU's champion on full history and write one servable bundle.
+
+    The bundle stores the **forecast path**, not the fitted model object.
+
+    These are univariate models with no exogenous inputs, and no new data
+    arrives between retrains, so the forecast for any horizon is fully
+    determined the moment the model is fitted. Persisting the path is exactly
+    equivalent to persisting the model and calling predict later.
+
+    It is also the difference between a bundle of kilobytes and one of
+    gigabytes. A fitted SARIMAX result with a 52-period seasonal term pickles
+    to roughly 220 MB because it carries the full Kalman smoother state for
+    every observation; twenty SARIMA champions alone produced a 445 MB file.
+    Storing paths also means the serving image needs neither statsmodels nor
+    xgboost, since there is nothing left to unpickle but numbers.
+    """
+    max_horizon = max(settings.max_forecast_horizon, horizon)
+    forecasts: dict[str, dict[str, list[float]]] = {}
     meta: dict[str, dict] = {}
 
     for row in champions.itertuples():
@@ -144,7 +160,12 @@ def _fit_and_persist(
             )
             model = fit_champion(y, BASELINE, settings.seasonal_period)
 
-        models[row.stock_code] = model
+        path = model.predict(max_horizon)
+        forecasts[row.stock_code] = {
+            "yhat": [round(float(v), 4) for v in path["yhat"]],
+            "yhat_lower": [round(float(v), 4) for v in path["yhat_lower"]],
+            "yhat_upper": [round(float(v), 4) for v in path["yhat_upper"]],
+        }
         meta[row.stock_code] = {
             "model": getattr(model, "name", row.champion),
             "backtest_mase": float(row.champion_mase),
@@ -161,10 +182,11 @@ def _fit_and_persist(
         }
 
     bundle = {
-        "models": models,
+        "forecasts": forecasts,
         "meta": meta,
         "seasonal_period": settings.seasonal_period,
         "horizon": horizon,
+        "max_horizon": max_horizon,
         "trained_at": datetime.now(UTC).isoformat(),
         "version": _next_version(settings.model_path),
     }
@@ -181,7 +203,13 @@ def _fit_and_persist(
             default=str,
         )
     )
-    logger.info("Persisted %d champion models to %s", len(models), target)
+    logger.info(
+        "Persisted %d champion forecast paths (%d weeks each) to %s -- %.1f KB",
+        len(forecasts),
+        max_horizon,
+        target,
+        target.stat().st_size / 1024,
+    )
     return bundle
 
 

@@ -197,7 +197,7 @@ Decisions worth defending, and why:
 | Uplift over propensity | Targeting who *responds* rather than who *buys*; the difference is the whole marketing budget |
 | Lift over confidence | Confidence ranks best-sellers regardless of input |
 | Optional heavy dependencies | The registry probes each candidate; a broken Prophet install skips that model instead of aborting a 100-SKU run |
-| Serving image carries statsmodels and xgboost | A champion bundle is a pickle of fitted models, so serving needs whatever library produced the winner — the training-only stack (mlflow, mlxtend, pandera) is what gets left out |
+| Bundle stores forecast paths, not fitted models | These are univariate models with no new data between retrains, so the path is fixed at fit time. A SARIMAX result with a 52-period seasonal term pickles to ~220 MB; storing paths took the bundle from 445 MB to under 100 KB and removed every modelling library from the serving image |
 | Spawn-based process pool | Forking a process holding threaded-BLAS locks deadlocks the children |
 
 ---

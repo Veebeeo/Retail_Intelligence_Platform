@@ -30,9 +30,28 @@ def test_no_champion_is_worse_than_the_baseline(trained):
 
 def test_the_bundle_is_written_and_loadable(trained):
     bundle = serving.load_bundle()
-    assert len(bundle.models) == trained["n_models"]
+    assert len(bundle.forecasts) == trained["n_models"]
     assert bundle.version >= 1
-    assert set(bundle.meta) == set(bundle.models)
+    assert set(bundle.meta) == set(bundle.forecasts)
+
+
+def test_the_bundle_stores_paths_not_model_objects(trained):
+    """A fitted SARIMAX result pickles to ~220 MB; an earlier version of this
+    bundle was 445 MB for twenty SKUs. Paths keep it in kilobytes and remove
+    statsmodels and xgboost from the serving image."""
+    bundle = serving.load_bundle()
+    size_kb = bundle.source.stat().st_size / 1024
+    assert size_kb < 512, f"bundle grew to {size_kb:.0f} KB; is it storing model objects?"
+    for sku, path in bundle.forecasts.items():
+        assert set(path) == {"yhat", "yhat_lower", "yhat_upper"}
+        assert len(path["yhat"]) == bundle.max_horizon, sku
+        assert all(isinstance(v, float) for v in path["yhat"])
+
+
+def test_requesting_more_than_the_precomputed_horizon_is_refused(trained):
+    bundle = serving.load_bundle()
+    with pytest.raises(ValueError, match="exceeds"):
+        serving.forecast(bundle.skus[0], bundle.max_horizon + 1, bundle)
 
 
 def test_every_bundle_entry_carries_its_provenance(trained):
@@ -104,34 +123,15 @@ def test_full_pipeline_runs_end_to_end(seeded_db):
     assert not failed, f"pipeline steps failed: {failed}"
 
 
-def test_missing_model_library_gives_an_actionable_error(tmp_path, monkeypatch):
-    """A bundle is a pickle of fitted models, so loading it needs whatever
-    library produced the champion. A bare ModuleNotFoundError from inside
-    pickle does not tell an operator which package to install."""
+def test_a_legacy_bundle_of_model_objects_is_rejected_clearly(tmp_path):
+    """Bundles used to hold fitted models. Loading one now should say to
+    retrain, not fail somewhere deep inside the serving path."""
     import pickle
 
-    bundle_path = tmp_path / "champions.pkl"
+    legacy = tmp_path / "champions.pkl"
+    legacy.write_bytes(pickle.dumps({"models": {"X": None}, "meta": {}, "version": 1}))
 
-    class _Unloadable:
-        def __reduce__(self):
-            return (_missing_factory, ())
-
-    bundle_path.write_bytes(
-        pickle.dumps({"models": {"X": _Unloadable()}, "meta": {}, "version": 1})
-    )
-
-    real_loads = pickle.load
-
-    def fake_load(fh):
-        raise ModuleNotFoundError("No module named 'xgboost'", name="xgboost")
-
-    monkeypatch.setattr(pickle, "load", fake_load)
     serving.reset_cache()
-    with pytest.raises(serving.ModelNotAvailable, match="xgboost"):
-        serving.load_bundle(bundle_path)
-    monkeypatch.setattr(pickle, "load", real_loads)
+    with pytest.raises(serving.ModelNotAvailable, match="older version"):
+        serving.load_bundle(legacy)
     serving.reset_cache()
-
-
-def _missing_factory():  # pragma: no cover - only referenced inside a pickle
-    raise ModuleNotFoundError("No module named 'xgboost'", name="xgboost")

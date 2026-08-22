@@ -141,7 +141,9 @@ if page == "Demand & Reordering":
         st.stop()
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Champion model", forecast["model"])
+    # st.metric truncates long values, and model names are long. Render as text.
+    m1.caption("Champion model")
+    m1.markdown(f"### `{forecast['model']}`")
     mase = forecast.get("backtest_mase")
     baseline_mase = forecast.get("baseline_mase")
     m2.metric(
@@ -164,20 +166,21 @@ if page == "Demand & Reordering":
     fdf = pd.DataFrame(forecast["predictions"])
     fdf["week_starting"] = pd.to_datetime(fdf["week_starting"])
 
+    week_axis = alt.X(
+        "week_starting:T",
+        title="Week commencing",
+        axis=alt.Axis(format="%d %b", tickCount=len(fdf), labelAngle=0),
+    )
     band = (
         alt.Chart(fdf)
         .mark_area(opacity=0.2)
-        .encode(
-            x=alt.X("week_starting:T", title="Week"),
-            y=alt.Y("lower_95:Q", title="Units"),
-            y2="upper_95:Q",
-        )
+        .encode(x=week_axis, y=alt.Y("lower_95:Q", title="Units"), y2="upper_95:Q")
     )
     line = (
         alt.Chart(fdf)
         .mark_line(point=True, strokeWidth=2)
         .encode(
-            x="week_starting:T",
+            x=week_axis,
             y="predicted_quantity:Q",
             tooltip=["week_starting:T", "predicted_quantity:Q", "lower_95:Q", "upper_95:Q"],
         )
@@ -379,7 +382,7 @@ else:
             alt.Chart(mix)
             .mark_bar()
             .encode(
-                x=alt.X("skus:Q", title="SKUs"),
+                x=alt.X("skus:Q", title="SKUs", axis=alt.Axis(tickMinStep=1, format="d")),
                 y=alt.Y("model:N", sort="-x", title=None),
                 tooltip=["model:N", "skus:Q"],
             )

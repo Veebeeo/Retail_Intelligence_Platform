@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
         logger.info(
             "API ready with champion bundle v%d covering %d SKUs",
             bundle.version,
-            len(bundle.models),
+            len(bundle.forecasts),
         )
     else:
         logger.warning("API starting WITHOUT forecasting models; /forecast will return 503")

@@ -26,6 +26,9 @@ def _isolated_env(tmp_path_factory):
     root = tmp_path_factory.mktemp("retail")
     os.environ["DATABASE_URL"] = f"sqlite:///{root / 'test.db'}"
     os.environ["MODEL_DIR"] = str(root / "models")
+    # Without this the suite overwrites the committed reports in ./reports with
+    # tiny fixture-scale output every time it runs.
+    os.environ["REPORT_DIR"] = str(root / "reports")
     os.environ["MLFLOW_TRACKING_URI"] = f"file:{root / 'mlruns'}"
     os.environ["LOG_LEVEL"] = "WARNING"
     os.environ.pop("POSTGRES_USER", None)
