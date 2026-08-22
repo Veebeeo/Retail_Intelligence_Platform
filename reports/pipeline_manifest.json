@@ -1,29 +1,58 @@
 {
-  "run_at": "2026-08-22T08:52:41.173536+00:00",
-  "total_seconds": 2.75,
+  "run_at": "2026-08-22T08:45:40.385578+00:00",
+  "total_seconds": 708.84,
   "steps": [
+    {
+      "name": "seed",
+      "status": "success",
+      "seconds": 1.33,
+      "detail": {
+        "rows": 10761,
+        "source": "synthetic"
+      },
+      "error": null
+    },
     {
       "name": "features",
       "status": "success",
-      "seconds": 0.13,
+      "seconds": 0.18,
       "detail": {
-        "rows": 802,
-        "skus": 10
+        "rows": 2610,
+        "skus": 20
+      },
+      "error": null
+    },
+    {
+      "name": "train",
+      "status": "success",
+      "seconds": 701.15,
+      "detail": {
+        "n_models": 20,
+        "champion_mix": {
+          "naive": 5,
+          "moving_average": 4,
+          "seasonal_naive": 4,
+          "xgboost": 3,
+          "sarima": 2,
+          "seasonal_drift": 2
+        },
+        "mean_champion_mase": 0.7287,
+        "pct_beating_baseline": 80.0
       },
       "error": null
     },
     {
       "name": "segment",
       "status": "success",
-      "seconds": 2.48,
+      "seconds": 3.55,
       "detail": {
-        "n_customers": 88,
-        "k": 2,
+        "n_customers": 374,
+        "k": 3,
         "clv": {
-          "total_predicted_clv": 2002.06,
-          "mean_predicted_clv": 22.75,
-          "mean_churn_probability": 0.3602,
-          "high_risk_high_value_customers": 3
+          "total_predicted_clv": 10953.98,
+          "mean_predicted_clv": 29.29,
+          "mean_churn_probability": 0.5577,
+          "high_risk_high_value_customers": 9
         }
       },
       "error": null
@@ -31,20 +60,20 @@
     {
       "name": "baskets",
       "status": "success",
-      "seconds": 0.12,
+      "seconds": 2.61,
       "detail": {
-        "n_rules": 84,
-        "max_lift": 1.8
+        "n_rules": 400,
+        "max_lift": 4.742
       },
       "error": null
     },
     {
       "name": "drift",
       "status": "success",
-      "seconds": 0.02,
+      "seconds": 0.03,
       "detail": {
-        "verdict": "significant",
-        "n_flagged": 8
+        "verdict": "moderate",
+        "n_flagged": 2
       },
       "error": null
     }

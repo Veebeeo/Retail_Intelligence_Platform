@@ -1,3 +1,4 @@
 segment_label,customers,avg_recency_days,avg_frequency,avg_monetary,total_revenue,avg_order_value,revenue_share_pct
-Champions,37,107.84,8.41,406.81,15052.08,47.09,81.48
-At-Risk High Value,51,350.12,1.88,67.08,3421.14,41.36,18.52
+At-Risk High Value,128,334.06,13.09,732.48,93757.91,63.13,71.73
+Hibernating,186,668.91,2.32,115.11,21410.41,50.92,16.38
+Champions,60,29.03,4.73,259.04,15542.56,58.13,11.89
